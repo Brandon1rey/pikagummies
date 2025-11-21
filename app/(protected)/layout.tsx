@@ -1,4 +1,5 @@
 import { Sidebar } from "@/components/layout/Sidebar"
+import { MobileSidebar } from "@/components/layout/MobileSidebar"
 
 export default function ProtectedLayout({
     children,
@@ -7,7 +8,10 @@ export default function ProtectedLayout({
 }) {
     return (
         <div className="flex h-screen w-full bg-stone-950 overflow-hidden">
-            {/* Fixed Sidebar */}
+            {/* Mobile Burger Menu */}
+            <MobileSidebar />
+
+            {/* Fixed Sidebar - Desktop Only */}
             <aside className="hidden md:flex w-72 flex-col fixed inset-y-0 z-50 border-r border-white/10 bg-stone-950/50 backdrop-blur-xl">
                 <Sidebar />
             </aside>
