@@ -31,26 +31,70 @@ export function ProfileClient({ initialProfile, user }: ProfileClientProps) {
         if (!e.target.files || e.target.files.length === 0) return
 
         const file = e.target.files[0]
+
+        // Validate file type
+        if (!file.type.startsWith('image/')) {
+            toast.error("Please select an image file")
+            return
+        }
+
+        // Validate file size (5MB max)
+        if (file.size > 5 * 1024 * 1024) {
+            toast.error("Image must be smaller than 5MB")
+            return
+        }
+
         const fileExt = file.name.split('.').pop()
-        const filePath = `${user.id}/${Math.random()}.${fileExt}`
+        const fileName = `${Date.now()}.${fileExt}`
+        const filePath = `${user.id}/${fileName}`
 
         setUploading(true)
         try {
+            // Upload to storage
             const { error: uploadError } = await supabase.storage
                 .from('avatars')
-                .upload(filePath, file)
+                .upload(filePath, file, {
+                    cacheControl: '3600',
+                    upsert: false
+                })
 
-            if (uploadError) throw uploadError
+            if (uploadError) {
+                console.error("Upload Error:", uploadError)
+                throw new Error(uploadError.message || "Upload failed")
+            }
 
+            // Get public URL
             const { data: { publicUrl } } = supabase.storage
                 .from('avatars')
                 .getPublicUrl(filePath)
 
+            // Immediately save to profile
+            const { error: saveError } = await supabase
+                .from('profiles')
+                .upsert({
+                    id: user.id,
+                    avatar_url: publicUrl,
+                    email: user.email,
+                    full_name: fullName || null,
+                    updated_at: new Date().toISOString()
+                })
+
+            if (saveError) {
+                console.error("Save Error:", saveError)
+                throw new Error(saveError.message || "Failed to save avatar URL")
+            }
+
             setAvatarUrl(publicUrl)
-            toast.success("Avatar uploaded successfully")
+            toast.success("Avatar uploaded and saved!", {
+                description: "Your profile picture has been updated."
+            })
+            router.refresh()
         } catch (error: any) {
-            console.error(error)
-            toast.error("Failed to upload avatar")
+            console.error("Avatar Upload Error:", error)
+            console.error("Error Details:", JSON.stringify(error, null, 2))
+            toast.error("Failed to upload avatar", {
+                description: error.message || "Check console for details"
+            })
         } finally {
             setUploading(false)
         }
@@ -74,8 +118,9 @@ export function ProfileClient({ initialProfile, user }: ProfileClientProps) {
             toast.success("Profile updated successfully")
             router.refresh()
         } catch (error: any) {
-            console.error(error)
-            toast.error("Failed to update profile")
+            console.error("Profile Save Error:", error)
+            console.error("Error Details:", JSON.stringify(error, null, 2))
+            toast.error("Failed to update profile", { description: error.message })
         } finally {
             setLoading(false)
         }

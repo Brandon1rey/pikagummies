@@ -30,7 +30,8 @@ export default function InvitesPage() {
                 if (error) throw error;
                 setInvites(data || []);
             } catch (e) {
-                console.error(e);
+                console.error("Fetch Invites Error:", e);
+                console.error("Error Details:", JSON.stringify(e, null, 2));
             } finally {
                 setLoading(false);
             }

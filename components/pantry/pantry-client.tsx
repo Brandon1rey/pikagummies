@@ -1,268 +1,243 @@
-"use client";
+"use client"
 
-import { useState } from "react";
-import { createClient } from "@/lib/supabase/client";
-import { SpicyCard, SpicyCardContent, SpicyCardHeader, SpicyCardTitle } from "@/components/ui/spicy-card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { toast } from "sonner";
-import { Plus, ShoppingCart, Trash2, Archive, AlertTriangle } from "lucide-react";
-import { Tables } from "@/lib/database.types";
-import { useRouter } from "next/navigation";
-import {
-    AlertDialog,
-    AlertDialogAction,
-    AlertDialogCancel,
-    AlertDialogContent,
-    AlertDialogDescription,
-    AlertDialogFooter,
-    AlertDialogHeader,
-    AlertDialogTitle,
-    AlertDialogTrigger,
-} from "@/components/ui/alert-dialog";
-
-type RawMaterial = Tables<"raw_materials">;
+import { useState } from "react"
+import { createClient } from "@/lib/supabase/client"
+import { RawMaterial } from "@/lib/types"
+import { SpicyCard, SpicyCardContent, SpicyCardHeader, SpicyCardTitle } from "@/components/ui/spicy-card"
+import { Button } from "@/components/ui/button"
+import { Input } from "@/components/ui/input"
+import { Label } from "@/components/ui/label"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
+import { toast } from "sonner"
+import { Loader2, ShoppingBasket, Calculator, Package, DollarSign, Tag, Trash2 } from "lucide-react"
+import { Badge } from "@/components/ui/badge"
+import confetti from "canvas-confetti"
 
 interface PantryClientProps {
-    initialStock: RawMaterial[];
+    initialStock: RawMaterial[]
+    user: any
 }
 
-export function PantryClient({ initialStock }: PantryClientProps) {
-    const supabase = createClient();
-    const router = useRouter();
-    const [loading, setLoading] = useState(false);
+export function PantryClient({ initialStock, user }: PantryClientProps) {
+    const supabase = createClient()
+    const [loading, setLoading] = useState(false)
 
-    // Purchase Form State
-    const [name, setName] = useState("");
-    const [qty, setQty] = useState("");
-    const [unit, setUnit] = useState("kg");
-    const [totalPrice, setTotalPrice] = useState("");
-    const [emoji, setEmoji] = useState("📦");
+    // Form State
+    const [name, setName] = useState("")
+    const [unit, setUnit] = useState("kg")
+    const [qty, setQty] = useState<number | "">("")
+    const [totalPrice, setTotalPrice] = useState<number | "">("")
+    const [emoji, setEmoji] = useState("📦")
 
-    // Derived State
-    const unitCost = (parseFloat(totalPrice) && parseFloat(qty))
-        ? (parseFloat(totalPrice) / parseFloat(qty)).toFixed(2)
-        : "0.00";
+    // Math Preview
+    const unitCost = (typeof qty === 'number' && typeof totalPrice === 'number' && qty > 0)
+        ? totalPrice / qty
+        : 0
 
     const handlePurchase = async (e: React.FormEvent) => {
-        e.preventDefault();
-        setLoading(true);
+        e.preventDefault()
+        if (!name || !qty || !totalPrice) return
 
+        setLoading(true)
         try {
-            const { data: { user } } = await supabase.auth.getUser();
-            if (!user) throw new Error("Not authenticated");
-
-            const { error } = await supabase.rpc("purchase_new_material", {
+            const { error } = await supabase.rpc('purchase_new_material', {
                 p_name: name,
                 p_unit: unit,
-                p_qty: parseFloat(qty),
-                p_total_price: parseFloat(totalPrice),
+                p_qty: Number(qty),
+                p_total_price: Number(totalPrice),
                 p_emoji: emoji,
                 p_user_id: user.id
-            });
+            })
 
-            if (error) throw error;
+            if (error) throw error
 
-            toast.success("Purchase Recorded!", {
+            toast.success("Purchase recorded!", {
                 description: `Added ${qty}${unit} of ${name} to inventory.`
-            });
+            })
+            confetti({
+                particleCount: 100,
+                spread: 70,
+                origin: { y: 0.6 }
+            })
 
             // Reset Form
-            setName("");
-            setQty("");
-            setTotalPrice("");
-            setEmoji("📦");
-            router.refresh();
-
+            setName("")
+            setQty("")
+            setTotalPrice("")
+            setEmoji("📦")
         } catch (error: any) {
-            console.error(error);
-            toast.error("Purchase Failed", {
-                description: error.message
-            });
+            console.error(error)
+            toast.error("Failed to record purchase", { description: error.message })
         } finally {
-            setLoading(false);
+            setLoading(false)
         }
-    };
+    }
 
-    const handleSmartDelete = async (id: string, name: string) => {
+    const handleDelete = async (id: string) => {
+        if (!confirm("Are you sure you want to delete this item?")) return
+
         try {
-            const { data, error } = await supabase.rpc("smart_delete_item", {
-                target_id: id,
-                table_name: "raw"
-            });
+            const { error } = await supabase
+                .from('raw_materials')
+                .delete()
+                .eq('id', id)
 
-            if (error) throw error;
+            if (error) throw error
 
-            if (data === "PERMANENTLY_DELETED") {
-                toast.success(`${name} Deleted`, {
-                    description: "Item had no usage history and was removed permanently."
-                });
-            } else {
-                toast.info(`${name} Archived`, {
-                    description: "Item has usage history, so it was archived instead of deleted."
-                });
-            }
-            router.refresh();
+            toast.success("Item deleted")
+            window.location.reload()
         } catch (error: any) {
-            console.error(error);
-            toast.error("Delete Failed", { description: error.message });
+            console.error(error)
+            toast.error("Failed to delete item", { description: error.message })
         }
-    };
+    }
 
     return (
-        <div className="space-y-8">
-            <div>
-                <h1 className="text-3xl font-bold text-foreground">Inventory Management 📦</h1>
-                <p className="text-muted-foreground">Track stock, record purchases, and manage raw materials.</p>
-            </div>
-
-            <div className="grid gap-6 lg:grid-cols-3">
-                {/* Left Column: Purchase Form */}
-                <div className="lg:col-span-1">
-                    <SpicyCard className="sticky top-6">
-                        <SpicyCardHeader>
-                            <SpicyCardTitle className="flex items-center gap-2">
-                                <ShoppingCart className="w-5 h-5 text-orange-500" />
-                                Record Purchase
-                            </SpicyCardTitle>
-                        </SpicyCardHeader>
-                        <SpicyCardContent>
-                            <form onSubmit={handlePurchase} className="space-y-4">
-                                <div className="grid grid-cols-4 gap-2">
-                                    <div className="col-span-1 space-y-2">
-                                        <Label>Icon</Label>
-                                        <Input
-                                            value={emoji}
-                                            onChange={(e) => setEmoji(e.target.value)}
-                                            className="text-center text-2xl"
-                                        />
-                                    </div>
-                                    <div className="col-span-3 space-y-2">
-                                        <Label>Item Name</Label>
-                                        <Input
-                                            placeholder="e.g. Sugar"
-                                            value={name}
-                                            onChange={(e) => setName(e.target.value)}
-                                            required
-                                        />
-                                    </div>
-                                </div>
-
-                                <div className="grid grid-cols-2 gap-4">
-                                    <div className="space-y-2">
-                                        <Label>Quantity</Label>
-                                        <Input
-                                            type="number"
-                                            step="0.01"
-                                            placeholder="0.00"
-                                            value={qty}
-                                            onChange={(e) => setQty(e.target.value)}
-                                            required
-                                        />
-                                    </div>
-                                    <div className="space-y-2">
-                                        <Label>Unit</Label>
-                                        <Input
-                                            placeholder="kg, L, pcs"
-                                            value={unit}
-                                            onChange={(e) => setUnit(e.target.value)}
-                                            required
-                                        />
-                                    </div>
-                                </div>
-
-                                <div className="space-y-2">
-                                    <Label>Total Price ($)</Label>
+        <div className="grid gap-6 lg:grid-cols-3 animate-in fade-in duration-500">
+            {/* Left Column: The Dumb-Proof Form */}
+            <div className="lg:col-span-2">
+                <SpicyCard>
+                    <SpicyCardHeader>
+                        <SpicyCardTitle className="flex items-center gap-2">
+                            <ShoppingBasket className="h-6 w-6 text-emerald-500" />
+                            Record New Purchase
+                        </SpicyCardTitle>
+                    </SpicyCardHeader>
+                    <SpicyCardContent>
+                        <form onSubmit={handlePurchase} className="space-y-6">
+                            {/* Question 1: Name */}
+                            <div className="space-y-2">
+                                <Label className="text-zinc-300">1. What is it called?</Label>
+                                <div className="relative">
+                                    <Tag className="absolute left-3 top-3 h-5 w-5 text-zinc-500" />
                                     <Input
-                                        type="number"
-                                        step="0.01"
-                                        placeholder="0.00"
-                                        value={totalPrice}
-                                        onChange={(e) => setTotalPrice(e.target.value)}
+                                        placeholder="e.g. Sugar, Corn Syrup, Magic Dust"
+                                        value={name}
+                                        onChange={(e) => setName(e.target.value)}
+                                        className="pl-10 bg-black/20 border-white/10 text-white"
                                         required
                                     />
                                 </div>
+                            </div>
 
-                                <div className="p-3 rounded-lg bg-white/5 border border-white/10 flex justify-between items-center">
-                                    <span className="text-sm text-muted-foreground">Est. Unit Cost:</span>
-                                    <span className="font-mono font-bold text-green-400">${unitCost} / {unit || 'unit'}</span>
+                            {/* Question 2: Unit */}
+                            <div className="space-y-2">
+                                <Label className="text-zinc-300">2. Is it in kg, g, L, or units?</Label>
+                                <Select value={unit} onValueChange={setUnit}>
+                                    <SelectTrigger className="bg-black/20 border-white/10 text-white">
+                                        <SelectValue />
+                                    </SelectTrigger>
+                                    <SelectContent className="bg-stone-900 border-white/10 text-white">
+                                        <SelectItem value="kg">Kilograms (kg)</SelectItem>
+                                        <SelectItem value="g">Grams (g)</SelectItem>
+                                        <SelectItem value="L">Liters (L)</SelectItem>
+                                        <SelectItem value="ml">Milliliters (ml)</SelectItem>
+                                        <SelectItem value="units">Units/Pieces</SelectItem>
+                                    </SelectContent>
+                                </Select>
+                            </div>
+
+                            <div className="grid grid-cols-2 gap-4">
+                                {/* Question 3: Quantity */}
+                                <div className="space-y-2">
+                                    <Label className="text-zinc-300">3. How much does it weigh?</Label>
+                                    <div className="relative">
+                                        <Package className="absolute left-3 top-3 h-5 w-5 text-zinc-500" />
+                                        <Input
+                                            type="number"
+                                            step="0.01"
+                                            placeholder="Total Qty"
+                                            value={qty}
+                                            onChange={(e) => setQty(e.target.value ? parseFloat(e.target.value) : "")}
+                                            className="pl-10 bg-black/20 border-white/10 text-white"
+                                            required
+                                        />
+                                    </div>
                                 </div>
 
-                                <Button
-                                    type="submit"
-                                    className="w-full bg-gradient-to-r from-orange-500 to-red-600 hover:from-orange-600 hover:to-red-700 text-white font-bold"
-                                    disabled={loading}
-                                >
-                                    {loading ? "Processing..." : "Add to Inventory"}
-                                </Button>
-                            </form>
-                        </SpicyCardContent>
-                    </SpicyCard>
-                </div>
+                                {/* Question 4: Total Price */}
+                                <div className="space-y-2">
+                                    <Label className="text-zinc-300">4. Total Receipt Price?</Label>
+                                    <div className="relative">
+                                        <DollarSign className="absolute left-3 top-3 h-5 w-5 text-zinc-500" />
+                                        <Input
+                                            type="number"
+                                            step="0.01"
+                                            placeholder="Total $"
+                                            value={totalPrice}
+                                            onChange={(e) => setTotalPrice(e.target.value ? parseFloat(e.target.value) : "")}
+                                            className="pl-10 bg-black/20 border-white/10 text-white"
+                                            required
+                                        />
+                                    </div>
+                                </div>
+                            </div>
 
-                {/* Right Column: Stock Grid */}
-                <div className="lg:col-span-2 grid gap-4 sm:grid-cols-2 xl:grid-cols-3 content-start">
-                    {initialStock.length === 0 ? (
-                        <div className="col-span-full text-center py-12 text-muted-foreground">
-                            <p>Pantry is empty. Go shopping! 🛒</p>
-                        </div>
-                    ) : (
-                        initialStock.map((item) => (
-                            <SpicyCard key={item.id} className="group relative overflow-hidden transition-all hover:scale-[1.02]">
-                                <SpicyCardContent className="p-5">
-                                    <div className="flex justify-between items-start mb-2">
-                                        <span className="text-4xl">{item.emoji}</span>
-                                        <div className="flex flex-col items-end">
-                                            <span className="text-2xl font-bold text-foreground">
-                                                {item.current_stock}
-                                                <span className="text-sm font-normal text-muted-foreground ml-1">{item.unit}</span>
-                                            </span>
-                                            <span className="text-xs text-muted-foreground">
-                                                ${item.average_cost?.toFixed(2)} / {item.unit}
-                                            </span>
+                            {/* Math Preview Card */}
+                            <div className="bg-white/5 p-4 rounded-lg border border-white/10 flex items-center gap-4">
+                                <div className="p-3 bg-emerald-500/20 rounded-full">
+                                    <Calculator className="h-6 w-6 text-emerald-500" />
+                                </div>
+                                <div>
+                                    <p className="text-sm text-zinc-400">System Calculation</p>
+                                    <p className="text-lg font-medium text-white">
+                                        Recording at <span className="text-emerald-400 font-bold">${unitCost.toFixed(2)} per {unit}</span>
+                                    </p>
+                                </div>
+                            </div>
+
+                            <Button
+                                type="submit"
+                                className="w-full bg-emerald-600 hover:bg-emerald-700 text-white font-bold h-12 text-lg"
+                                disabled={loading}
+                            >
+                                {loading ? <Loader2 className="animate-spin" /> : "Record Purchase"}
+                            </Button>
+                        </form>
+                    </SpicyCardContent>
+                </SpicyCard>
+            </div>
+
+            {/* Right Column: Current Inventory */}
+            <div>
+                <SpicyCard className="h-full">
+                    <SpicyCardHeader>
+                        <SpicyCardTitle>Current Stock</SpicyCardTitle>
+                    </SpicyCardHeader>
+                    <SpicyCardContent>
+                        <div className="space-y-3 max-h-[600px] overflow-y-auto pr-2">
+                            {initialStock.length === 0 ? (
+                                <div className="text-center text-zinc-500 py-10">Pantry is empty.</div>
+                            ) : (
+                                initialStock.map((item) => (
+                                    <div key={item.id} className="flex items-center justify-between p-3 bg-black/20 rounded border border-white/5">
+                                        <div className="flex items-center gap-3">
+                                            <span className="text-2xl">{item.emoji}</span>
+                                            <div>
+                                                <p className="font-medium text-white">{item.name}</p>
+                                                <p className="text-xs text-zinc-500">${Number(item.average_cost).toFixed(2)} / {item.unit}</p>
+                                            </div>
+                                        </div>
+                                        <div className="flex items-center gap-2">
+                                            <Badge variant="outline" className="border-emerald-500/20 text-emerald-400">
+                                                {Number(item.current_stock).toLocaleString()} {item.unit}
+                                            </Badge>
+                                            <Button
+                                                size="icon"
+                                                variant="ghost"
+                                                className="h-8 w-8 text-zinc-500 hover:text-red-500 hover:bg-red-500/10"
+                                                onClick={() => handleDelete(item.id)}
+                                            >
+                                                <Trash2 className="h-4 w-4" />
+                                            </Button>
                                         </div>
                                     </div>
-                                    <h3 className="font-bold text-lg truncate pr-8">{item.name}</h3>
-
-                                    {/* Smart Delete Action */}
-                                    <div className="absolute top-2 right-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                        <AlertDialog>
-                                            <AlertDialogTrigger asChild>
-                                                <Button variant="ghost" size="icon" className="h-8 w-8 text-red-400 hover:text-red-300 hover:bg-red-900/20">
-                                                    <Trash2 className="w-4 h-4" />
-                                                </Button>
-                                            </AlertDialogTrigger>
-                                            <AlertDialogContent className="bg-stone-900 border border-white/10 text-foreground">
-                                                <AlertDialogHeader>
-                                                    <AlertDialogTitle>Delete {item.name}?</AlertDialogTitle>
-                                                    <AlertDialogDescription>
-                                                        If this item has been used in batches, it will be <strong>archived</strong> to preserve history.
-                                                        Otherwise, it will be <strong>permanently deleted</strong>.
-                                                    </AlertDialogDescription>
-                                                </AlertDialogHeader>
-                                                <AlertDialogFooter>
-                                                    <AlertDialogCancel className="border-white/10 hover:bg-white/5 hover:text-foreground">Cancel</AlertDialogCancel>
-                                                    <AlertDialogAction
-                                                        onClick={() => handleSmartDelete(item.id, item.name)}
-                                                        className="bg-red-600 hover:bg-red-700 text-white"
-                                                    >
-                                                        Confirm
-                                                    </AlertDialogAction>
-                                                </AlertDialogFooter>
-                                            </AlertDialogContent>
-                                        </AlertDialog>
-                                    </div>
-                                </SpicyCardContent>
-                                {/* Low Stock Indicator */}
-                                {item.current_stock !== null && item.current_stock < 10 && (
-                                    <div className="absolute bottom-0 left-0 right-0 h-1 bg-red-500/50" />
-                                )}
-                            </SpicyCard>
-                        ))
-                    )}
-                </div>
+                                ))
+                            )}
+                        </div>
+                    </SpicyCardContent>
+                </SpicyCard>
             </div>
         </div>
-    );
+    )
 }

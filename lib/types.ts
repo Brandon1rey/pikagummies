@@ -89,3 +89,12 @@ export interface DashboardFinancials {
     type: 'revenue' | 'cogs' | 'opex'
     amount: number
 }
+
+export interface SaleRecord {
+    id: string
+    product_name: string
+    quantity: number
+    total_amount: number
+    created_at: string
+    sold_by_email: string | null
+}

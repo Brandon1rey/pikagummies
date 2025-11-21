@@ -19,5 +19,5 @@ export default async function PantryPage() {
         .select("*")
         .order("name");
 
-    return <PantryClient initialStock={rawMaterials || []} />;
+    return <PantryClient initialStock={rawMaterials || []} user={user} />;
 }

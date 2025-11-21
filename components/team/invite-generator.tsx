@@ -54,8 +54,9 @@ export function InviteGenerator() {
     };
 
     const copyToClipboard = () => {
-        navigator.clipboard.writeText(generatedCode);
-        toast.success("Copied to clipboard!");
+        const url = `${window.location.origin}/invite?code=${generatedCode}`;
+        navigator.clipboard.writeText(url);
+        toast.success("Invite link copied to clipboard!");
     };
 
     return (
@@ -94,8 +95,8 @@ export function InviteGenerator() {
                             Share this code
                         </label>
                         <div className="flex items-center gap-2">
-                            <code className="flex-1 text-2xl font-mono text-white tracking-wider bg-black/20 p-2 rounded text-center border border-white/5">
-                                {generatedCode}
+                            <code className="flex-1 text-sm font-mono text-white tracking-wider bg-black/20 p-2 rounded text-center border border-white/5 break-all">
+                                {`${typeof window !== 'undefined' ? window.location.origin : ''}/invite?code=${generatedCode}`}
                             </code>
                             <Button variant="outline" size="icon" onClick={copyToClipboard} className="border-white/10 hover:bg-white/5">
                                 <Copy className="h-4 w-4" />

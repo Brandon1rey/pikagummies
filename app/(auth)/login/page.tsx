@@ -41,7 +41,13 @@ export default function LoginPage() {
             }
         } catch (err: any) {
             console.error('💥 [CLIENT] Critical Failure:', err)
-            toast.error(err.message || 'An error occurred during login')
+            if (err.message.includes('Email not confirmed')) {
+                toast.error('Email not confirmed', {
+                    description: 'Please check your inbox or ask an admin to disable email confirmation in Supabase settings.'
+                })
+            } else {
+                toast.error(err.message || 'An error occurred during login')
+            }
             setLoading(false)
         }
     }

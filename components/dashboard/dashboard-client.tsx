@@ -182,13 +182,13 @@ export function DashboardClient({
 
             {/* Charts Row 2: Details */}
             <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                {/* Expense Breakdown */}
-                <SpicyCard className="col-span-1">
+                {/* Expense Breakdown - BIGGER & BETTER */}
+                <SpicyCard className="col-span-2">
                     <SpicyCardHeader>
-                        <SpicyCardTitle>Expense Breakdown</SpicyCardTitle>
+                        <SpicyCardTitle className="text-xl">Where Does the Money Go?</SpicyCardTitle>
                     </SpicyCardHeader>
                     <SpicyCardContent>
-                        <div className="h-[250px] w-full">
+                        <div className="h-[400px] w-full">
                             {expenseBreakdown.length > 0 ? (
                                 <ResponsiveContainer width="100%" height="100%">
                                     <PieChart>
@@ -196,17 +196,24 @@ export function DashboardClient({
                                             data={expenseBreakdown}
                                             cx="50%"
                                             cy="50%"
-                                            innerRadius={60}
-                                            outerRadius={80}
+                                            labelLine={false}
+                                            label={({ category, percent }) => `${category}: ${(percent * 100).toFixed(0)}%`}
+                                            outerRadius={120}
                                             paddingAngle={5}
                                             dataKey="total_amount"
+                                            style={{ fontSize: '16px', fontWeight: 'bold' }}
                                         >
                                             {expenseBreakdown.map((entry, index) => (
                                                 <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                                             ))}
                                         </Pie>
                                         <Tooltip
-                                            contentStyle={{ backgroundColor: '#1c1917', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px' }}
+                                            contentStyle={{ backgroundColor: '#1c1917', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px', fontSize: '14px' }}
+                                            formatter={(value: number) => `$${value.toFixed(2)}`}
+                                        />
+                                        <Legend
+                                            wrapperStyle={{ fontSize: '14px', fontWeight: '500' }}
+                                            iconType="circle"
                                         />
                                     </PieChart>
                                 </ResponsiveContainer>
@@ -220,12 +227,12 @@ export function DashboardClient({
                 </SpicyCard>
 
                 {/* Weekly Sales */}
-                <SpicyCard className="col-span-2">
+                <SpicyCard className="col-span-1">
                     <SpicyCardHeader>
                         <SpicyCardTitle>Weekly Sales Pattern</SpicyCardTitle>
                     </SpicyCardHeader>
                     <SpicyCardContent className="pl-2">
-                        <div className="h-[250px] w-full">
+                        <div className="h-[400px] w-full">
                             {salesByDow.length > 0 ? (
                                 <ResponsiveContainer width="100%" height="100%">
                                     <BarChart data={salesByDow}>

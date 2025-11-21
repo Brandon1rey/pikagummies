@@ -1,7 +1,7 @@
 'use client'
 
-import { useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useState, useEffect, Suspense } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { SpicyCard } from '@/components/ui/spicy-card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -10,8 +10,9 @@ import { toast } from 'sonner'
 import { Loader2, Ticket, ArrowRight, UserPlus, Lock, Mail } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 
-export default function InvitePage() {
+function InvitePageContent() {
     const router = useRouter()
+    const searchParams = useSearchParams()
     const supabase = createClient()
     const [loading, setLoading] = useState(false)
     const [step, setStep] = useState<'code' | 'register'>('code')
@@ -25,8 +26,16 @@ export default function InvitePage() {
     const [password, setPassword] = useState('')
     const [fullName, setFullName] = useState('')
 
-    const verifyCode = async (e: React.FormEvent) => {
-        e.preventDefault()
+    // Auto-fill code from URL
+    useEffect(() => {
+        const codeFromUrl = searchParams.get('code')
+        if (codeFromUrl) {
+            setInviteCode(codeFromUrl)
+        }
+    }, [searchParams])
+
+    const verifyCode = async (e?: React.FormEvent) => {
+        if (e) e.preventDefault()
         if (!inviteCode) return
 
         setLoading(true)
@@ -44,6 +53,8 @@ export default function InvitePage() {
             setStep('register')
             toast.success("Invite code verified! Welcome to the team.")
         } catch (err: any) {
+            console.error("Verify Error:", err)
+            console.error("Error Details:", JSON.stringify(err, null, 2))
             toast.error(err.message)
         } finally {
             setLoading(false)
@@ -71,6 +82,11 @@ export default function InvitePage() {
             if (!authData.user) throw new Error("Registration failed")
 
             // 2. Update the invite as used
+            // Note: This might fail if email confirmation is enabled and the user is not logged in yet.
+            // Ideally, this should be done by a trigger or edge function, but we'll try client-side.
+            // If the user is not logged in (session is null), this update will fail due to RLS unless we have a policy allowing it.
+            // However, since we just signed up, we might have a session if email confirmation is OFF.
+
             const { error: inviteError } = await supabase
                 .from('invites')
                 .update({
@@ -81,21 +97,18 @@ export default function InvitePage() {
 
             if (inviteError) {
                 console.error("Failed to mark invite as used:", inviteError)
-                // Non-critical, but good to log
+                console.error("Error Details:", JSON.stringify(inviteError, null, 2))
+                // Non-critical, but good to log. 
+                // If this fails, it means the invite is still "active" which is a minor issue.
             }
-
-            // 3. Create/Update Profile (if not handled by trigger, but let's be safe)
-            // Assuming a trigger handles profile creation on auth.users insert, 
-            // but we might want to ensure the role is set correctly if the trigger doesn't handle metadata.
-            // For now, we'll trust the metadata or the trigger. 
-            // If the trigger copies raw_user_meta_data->role to profiles.role, we are good.
 
             toast.success("Account created! Welcome aboard 🚀")
             router.push('/')
             router.refresh()
 
         } catch (err: any) {
-            console.error(err)
+            console.error("Registration Error:", err)
+            console.error("Error Details:", JSON.stringify(err, null, 2))
             toast.error(err.message || "Registration failed")
         } finally {
             setLoading(false)
@@ -212,5 +225,13 @@ export default function InvitePage() {
                 )}
             </SpicyCard>
         </div>
+    )
+}
+
+export default function InvitePage() {
+    return (
+        <Suspense fallback={<div className="flex items-center justify-center min-h-screen"><Loader2 className="animate-spin h-8 w-8 text-purple-500" /></div>}>
+            <InvitePageContent />
+        </Suspense>
     )
 }

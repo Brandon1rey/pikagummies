@@ -59,7 +59,7 @@ export function RecipeEditor({ initialProducts, rawMaterials }: RecipeEditorProp
             toast.error("Failed to load recipe");
             console.error(error);
         } else {
-            setIngredients(data.map(item => ({
+            setIngredients(data.map((item: any) => ({
                 raw_material_id: item.raw_material_id,
                 qty_required: item.qty_required
             })));

@@ -3,7 +3,7 @@
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { cn } from "@/lib/utils"
-import { LayoutDashboard, UtensilsCrossed, ShoppingBasket, DollarSign, Users, CreditCard, LogOut, ChefHat } from "lucide-react"
+import { LayoutDashboard, UtensilsCrossed, ShoppingBasket, DollarSign, Users, CreditCard, LogOut, ChefHat, User } from "lucide-react"
 import { createClient } from "@/lib/supabase/client"
 import { useEffect, useState } from "react"
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
@@ -14,7 +14,7 @@ const routes = [
     {
         label: "Dashboard",
         icon: LayoutDashboard,
-        href: "/dashboard",
+        href: "/",
         color: "text-sky-500",
     },
     {
@@ -79,7 +79,7 @@ export function Sidebar() {
     return (
         <div className="space-y-4 py-4 flex flex-col h-full text-white">
             <div className="px-3 py-2 flex-1">
-                <Link href="/dashboard" className="flex items-center pl-3 mb-14">
+                <Link href="/" className="flex items-center pl-3 mb-14">
                     <div className="relative h-8 w-8 mr-4">
                         <UtensilsCrossed className="h-8 w-8 text-orange-500" />
                     </div>
@@ -124,26 +124,33 @@ export function Sidebar() {
 
             {/* User Profile Section */}
             <div className="px-3 py-2 border-t border-white/10">
-                {profile ? (
-                    <div className="flex items-center gap-x-3 mb-4 p-2 rounded-lg bg-white/5">
-                        <Avatar>
-                            <AvatarImage src={profile.avatar_url} />
-                            <AvatarFallback className="bg-orange-500/20 text-orange-500">
-                                {profile.full_name?.[0] || 'U'}
-                            </AvatarFallback>
-                        </Avatar>
-                        <div className="flex flex-col overflow-hidden">
-                            <p className="text-sm font-medium text-white truncate">
-                                {profile.full_name || 'User'}
-                            </p>
-                            <p className="text-xs text-zinc-400 truncate">
-                                {profile.role}
-                            </p>
-                        </div>
+                <Link href="/team/profile">
+                    <div className={cn(
+                        "flex items-center gap-x-3 mb-4 p-2 rounded-lg transition cursor-pointer",
+                        pathname === "/team/profile" ? "bg-white/10" : "hover:bg-white/5"
+                    )}>
+                        {profile ? (
+                            <>
+                                <Avatar>
+                                    <AvatarImage src={profile.avatar_url} />
+                                    <AvatarFallback className="bg-orange-500/20 text-orange-500">
+                                        {profile.full_name?.[0] || 'U'}
+                                    </AvatarFallback>
+                                </Avatar>
+                                <div className="flex flex-col overflow-hidden">
+                                    <p className="text-sm font-medium text-white truncate">
+                                        {profile.full_name || 'User'}
+                                    </p>
+                                    <p className="text-xs text-zinc-400 truncate">
+                                        {profile.role}
+                                    </p>
+                                </div>
+                            </>
+                        ) : (
+                            <div className="h-10 w-full bg-white/5 animate-pulse rounded-lg" />
+                        )}
                     </div>
-                ) : (
-                    <div className="h-14 w-full bg-white/5 animate-pulse rounded-lg mb-4" />
-                )}
+                </Link>
 
                 <button
                     onClick={handleLogout}
