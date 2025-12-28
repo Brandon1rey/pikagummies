@@ -40,8 +40,8 @@ export async function POST(request: NextRequest) {
         const messageId = message.id
 
         // 2. Idempotency Check
-        const { error: idempError } = await supabase
-            .from('webhook_events')
+        const { error: idempError } = await (supabase
+            .from('webhook_events') as any)
             .insert({ event_id: messageId, payload: body })
 
         if (idempError) {
@@ -53,8 +53,8 @@ export async function POST(request: NextRequest) {
 
         // 3. Resolve Tenant
         const channelId = value.metadata?.phone_number_id
-        const { data: channel } = await supabase
-            .from('organization_channels')
+        const { data: channel } = await (supabase
+            .from('organization_channels') as any)
             .select('organization_id')
             .eq('phone_number_id', channelId)
             .single()

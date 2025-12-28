@@ -24,8 +24,8 @@ export async function POST(request: NextRequest) {
         const supabase = createServiceRoleClient()
 
         // A. Resolve Product ID
-        const { data: products } = await supabase
-            .from('finished_products')
+        const { data: products } = await (supabase
+            .from('finished_products') as any)
             .select('id, sale_price')
             .eq('organization_id', organization_id)
             .ilike('name', product_name)
@@ -38,7 +38,7 @@ export async function POST(request: NextRequest) {
         const product = products[0]
 
         // B. Execute RPC (Atomic Sale)
-        const { error: rpcError } = await supabase.rpc('record_manual_sale', {
+        const { error: rpcError } = await (supabase.rpc as any)('record_manual_sale', {
             p_product_id: product.id,
             p_qty: quantity,
             p_payment_method: 'whatsapp_bot',

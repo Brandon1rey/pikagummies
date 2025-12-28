@@ -30,13 +30,14 @@ export async function GET(request: NextRequest) {
             // Group by hour
             const hourlyStats: Record<number, { sales: number; revenue: number }> = {}
 
-            salesData?.forEach(sale => {
-                if (!sale.created_at) return
-                const hour = new Date(sale.created_at).getHours()
-                if (!hourlyStats[hour]) hourlyStats[hour] = { sales: 0, revenue: 0 }
-                hourlyStats[hour].sales++
-                hourlyStats[hour].revenue += Number(sale.total_amount)
-            })
+
+                ; (salesData as any[])?.forEach(sale => {
+                    if (!sale.created_at) return
+                    const hour = new Date(sale.created_at).getHours()
+                    if (!hourlyStats[hour]) hourlyStats[hour] = { sales: 0, revenue: 0 }
+                    hourlyStats[hour].sales++
+                    hourlyStats[hour].revenue += Number(sale.total_amount)
+                })
 
             // Find peak hour
             const hours = Object.entries(hourlyStats)
@@ -58,12 +59,13 @@ export async function GET(request: NextRequest) {
                 dailyStats[i] = { name, sales: 0, revenue: 0 }
             })
 
-            salesData?.forEach(sale => {
-                if (!sale.created_at) return
-                const dow = new Date(sale.created_at).getDay()
-                dailyStats[dow].sales++
-                dailyStats[dow].revenue += Number(sale.total_amount)
-            })
+
+                ; (salesData as any[])?.forEach(sale => {
+                    if (!sale.created_at) return
+                    const dow = new Date(sale.created_at).getDay()
+                    dailyStats[dow].sales++
+                    dailyStats[dow].revenue += Number(sale.total_amount)
+                })
 
             const dayData = Object.values(dailyStats).sort((a, b) => b.sales - a.sales)
 

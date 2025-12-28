@@ -27,7 +27,7 @@ export async function GET(request: NextRequest) {
 
         // Get product names
         const productIds = [...new Set(
-            salesData
+            (salesData as any[])
                 ?.map(s => s.finished_product_id)
                 .filter((id): id is string => id !== null && id !== undefined)
             || []
@@ -37,29 +37,29 @@ export async function GET(request: NextRequest) {
             return NextResponse.json({ data: [] })
         }
 
-        const { data: productsData } = await supabase
-            .from('finished_products')
+        const { data: productsData } = await (supabase
+            .from('finished_products') as any)
             .select('id, name')
             .in('id', productIds)
 
-        const productMap = new Map(productsData?.map(p => [p.id, p.name]) || [])
+        const productMap = new Map((productsData as any[])?.map(p => [p.id, p.name]) || [])
 
         // Aggregate by product
         const productStats: Record<string, { name: string; revenue: number; sales: number }> = {}
 
-        salesData?.forEach(sale => {
-            const id = sale.finished_product_id
-            if (!id) return
-            if (!productStats[id]) {
-                productStats[id] = {
-                    name: productMap.get(id) || 'Unknown',
-                    revenue: 0,
-                    sales: 0
+            ; (salesData as any[])?.forEach(sale => {
+                const id = sale.finished_product_id
+                if (!id) return
+                if (!productStats[id]) {
+                    productStats[id] = {
+                        name: productMap.get(id) || 'Unknown',
+                        revenue: 0,
+                        sales: 0
+                    }
                 }
-            }
-            productStats[id].revenue += Number(sale.total_amount)
-            productStats[id].sales += sale.quantity
-        })
+                productStats[id].revenue += Number(sale.total_amount)
+                productStats[id].sales += sale.quantity
+            })
 
         // Sort by revenue and take top 5
         const topProducts = Object.values(productStats)

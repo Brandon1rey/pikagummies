@@ -32,8 +32,8 @@ export async function POST(request: NextRequest) {
         const supabase = createServiceRoleClient()
 
         // Check if product already exists
-        const { data: existing } = await supabase
-            .from('finished_products')
+        const { data: existing } = await (supabase
+            .from('finished_products') as any)
             .select('id, name')
             .eq('organization_id', payload.organization_id)
             .eq('name', normalizedName)
@@ -50,8 +50,8 @@ export async function POST(request: NextRequest) {
         }
 
         // Create new product
-        const { data: newProduct, error } = await supabase
-            .from('finished_products')
+        const { data: newProduct, error } = await (supabase
+            .from('finished_products') as any)
             .insert({
                 name: normalizedName,
                 sale_price: payload.sale_price,

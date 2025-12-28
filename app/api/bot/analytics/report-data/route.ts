@@ -32,7 +32,7 @@ export async function GET(request: NextRequest) {
     const startIso = startDate.toISOString()
 
     try {
-        let data = []
+        let data: any[] = []
         let error = null
 
         if (type === 'sales') {

@@ -13,8 +13,8 @@ export async function GET(request: NextRequest) {
 
     const supabase = createServiceRoleClient()
 
-    let dbQuery = supabase
-        .from('raw_materials')
+    let dbQuery = (supabase
+        .from('raw_materials') as any)
         .select('id, name, current_stock, unit, average_cost, package_weight, weight_unit')
         .eq('organization_id', orgId)
         .eq('is_active', true)

@@ -27,8 +27,8 @@ export async function POST(request: NextRequest) {
         const supabase = createServiceRoleClient()
 
         // Atomic update with org scope for security
-        const { data, error } = await supabase
-            .from('finished_products')
+        const { data, error } = await (supabase
+            .from('finished_products') as any)
             .update({ sale_price: new_price })
             .eq('id', product_id)
             .eq('organization_id', organization_id) // Strict tenant isolation

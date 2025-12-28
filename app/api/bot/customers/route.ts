@@ -20,7 +20,7 @@ export async function POST(request: NextRequest) {
         const supabase = createServiceRoleClient()
 
         // Upsert customer (insert or update if exists)
-        const { data, error } = await (supabase.from('crm_customers' as any)).upsert({
+        const { data, error } = await (supabase.from('crm_customers') as any).upsert({
             phone: payload.phone,
             organization_id: payload.organization_id,
             name: payload.name || null,
@@ -53,7 +53,7 @@ export async function GET(request: NextRequest) {
 
     const supabase = createServiceRoleClient()
 
-    const { data, error } = await (supabase.from('crm_customers' as any))
+    const { data, error } = await (supabase.from('crm_customers') as any)
         .select('*')
         .eq('phone', phone)
         .eq('organization_id', orgId)

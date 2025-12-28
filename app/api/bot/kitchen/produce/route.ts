@@ -32,8 +32,8 @@ export async function POST(request: NextRequest) {
         }
 
         // 2. Find Product by Name
-        const { data: product, error: productError } = await supabase
-            .from('finished_products')
+        const { data: product, error: productError } = await (supabase
+            .from('finished_products') as any)
             .select('id, name, current_stock')
             .eq('organization_id', payload.organization_id)
             .ilike('name', payload.product_name)
@@ -66,7 +66,7 @@ export async function POST(request: NextRequest) {
                 )
             `)
             .eq('id', product.id)
-            .single())
+            .single()) as { data: any, error: any }
 
         if (productRecipeError || !productWithRecipe || !productWithRecipe.recipes || productWithRecipe.recipes.length === 0) {
             return NextResponse.json({

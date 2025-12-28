@@ -52,7 +52,7 @@ export default async function DashboardPage() {
             supabase.rpc("get_quarterly_sales"),
             supabase.rpc("get_top_products"),
             supabase.from("organization_settings").select("*").eq("organization_id", orgId).single(),
-            createServiceRoleClient().from("organizations").select("name").eq("id", orgId).single()
+            createServiceRoleClient().from("organizations").select("name").eq("id", orgId).single() as unknown as Promise<{ data: { name: string } | null, error: any }>
         ]);
 
         return (

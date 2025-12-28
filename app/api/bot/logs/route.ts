@@ -25,7 +25,7 @@ export async function POST(request: NextRequest) {
 
         // Fire and forget (don't await the error, just trigger insertion)
         // Casting to any to bypass missing type definition for crm_conversations
-        await (supabase.from('crm_conversations' as any)).insert({
+        await (supabase.from('crm_conversations') as any).insert({
             organization_id: payload.organization_id,
             customer_phone: payload.customer_phone,
             sender: payload.sender,

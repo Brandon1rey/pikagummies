@@ -31,7 +31,7 @@ export async function POST(request: NextRequest) {
 
         // 2. Call the Stored Procedure (Centralized Logic)
         // This ensures Retail/Manufacturing logic is respected (check migration v6)
-        const { error } = await supabase.rpc('record_manual_sale', {
+        const { error } = await (supabase.rpc as any)('record_manual_sale', {
             p_product_id: payload.product_id,
             p_qty: payload.quantity,
             p_payment_method: 'cash', // Default for now

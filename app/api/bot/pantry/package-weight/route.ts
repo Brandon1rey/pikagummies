@@ -28,8 +28,8 @@ export async function POST(request: NextRequest) {
         const supabase = createServiceRoleClient()
 
         // Find material by name (exact match, case insensitive)
-        const { data: material, error: findError } = await supabase
-            .from('raw_materials')
+        const { data: material, error: findError } = await (supabase
+            .from('raw_materials') as any)
             .select('id, name')
             .eq('organization_id', payload.organization_id)
             .ilike('name', payload.material_name)
@@ -43,8 +43,8 @@ export async function POST(request: NextRequest) {
         }
 
         // Update package weight
-        const { error: updateError } = await supabase
-            .from('raw_materials')
+        const { error: updateError } = await (supabase
+            .from('raw_materials') as any)
             .update({
                 package_weight: payload.package_weight,
                 weight_unit: payload.weight_unit

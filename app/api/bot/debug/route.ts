@@ -5,9 +5,9 @@ export async function GET(request: NextRequest) {
     const supabase = createServiceRoleClient()
 
     // 1. Check Function Definition
-    const { data: funcDef, error: funcError } = await supabase.rpc('get_function_def', {
+    const { data: funcDef, error: funcError } = await (supabase.rpc as any)('get_function_def', {
         func_name: 'record_experimental_batch'
-    } as any).catch(e => ({ data: null, error: e }))
+    }).catch((e: any) => ({ data: null, error: e }))
 
     // If we can't call a helper, let's try raw SQL via RPC if enabled, or just check triggers
     // Supabase client doesn't support raw SQL directly unless we use an RPC.

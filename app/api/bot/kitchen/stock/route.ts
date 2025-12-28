@@ -14,8 +14,8 @@ export async function GET(request: NextRequest) {
     const supabase = createServiceRoleClient()
 
     try {
-        let queryBuilder = supabase
-            .from('finished_products')
+        let queryBuilder = (supabase
+            .from('finished_products') as any)
             .select('id, name, current_stock, sale_price, is_active')
             .eq('organization_id', orgId)
             .eq('is_active', true)

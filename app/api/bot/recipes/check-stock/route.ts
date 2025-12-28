@@ -28,8 +28,8 @@ export async function GET(request: NextRequest) {
         const supabase = createServiceRoleClient()
 
         // 1. Find the product
-        const { data: product } = await supabase
-            .from('finished_products')
+        const { data: product } = await (supabase
+            .from('finished_products') as any)
             .select(`
                 id,
                 name,
@@ -84,7 +84,7 @@ export async function GET(request: NextRequest) {
 
             if (material?.package_weight && material?.package_weight > 0) {
                 available = available * material.package_weight
-                unit = material.weight_unit // Display unit becomes the weight unit (e.g. 'g')
+                unit = material.weight_unit || unit // Display unit becomes the weight unit (e.g. 'g')
             }
 
             const remaining = available - required

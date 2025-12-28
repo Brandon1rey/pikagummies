@@ -24,8 +24,8 @@ export async function GET(request: NextRequest) {
         const supabase = createServiceRoleClient()
 
         // 1. Get all finished products with their recipes
-        const { data: products } = await supabase
-            .from('finished_products')
+        const { data: products } = await (supabase
+            .from('finished_products') as any)
             .select(`
                 id,
                 name,

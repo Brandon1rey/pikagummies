@@ -39,8 +39,7 @@ export async function POST(request: NextRequest) {
         const supabase = createServiceRoleClient()
 
         // Insert expense directly
-        const { data, error } = await supabase
-            .from('expenses')
+        const { data, error } = await (supabase.from('expenses') as any)
             .insert({
                 category: category,
                 amount: payload.amount,

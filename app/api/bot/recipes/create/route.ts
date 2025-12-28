@@ -35,8 +35,8 @@ export async function POST(request: NextRequest) {
         const supabase = createServiceRoleClient()
 
         // 1. Verify product exists
-        const { data: product, error: productError } = await supabase
-            .from('finished_products')
+        const { data: product, error: productError } = await (supabase
+            .from('finished_products') as any)
             .select('id, name')
             .eq('id', payload.product_id)
             .eq('organization_id', payload.organization_id)
@@ -74,8 +74,8 @@ export async function POST(request: NextRequest) {
             organization_id: payload.organization_id
         }))
 
-        const { error: insertError } = await supabase
-            .from('recipes')
+        const { error: insertError } = await (supabase
+            .from('recipes') as any)
             .insert(recipeEntries)
 
         if (insertError) throw insertError

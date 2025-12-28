@@ -59,15 +59,15 @@ export async function GET(request: NextRequest) {
         if (expensesRes.error) throw expensesRes.error
 
         // 3. Aggregation Logic
-        const totalRevenue = salesRes.data?.reduce((sum, s) => sum + Number(s.total_amount), 0) || 0
-        const totalExpenses = expensesRes.data?.reduce((sum, e) => sum + Number(e.amount), 0) || 0
+        const totalRevenue = (salesRes.data as any[])?.reduce((sum, s) => sum + Number(s.total_amount), 0) || 0
+        const totalExpenses = (expensesRes.data as any[])?.reduce((sum, e) => sum + Number(e.amount), 0) || 0
         const netCashFlow = totalRevenue - totalExpenses
 
         // Group Expenses
         const breakdown: Record<string, number> = {}
-        expensesBreakdownRes.data?.forEach(e => {
-            breakdown[e.category] = (breakdown[e.category] || 0) + Number(e.amount)
-        })
+            ; (expensesBreakdownRes.data as any[])?.forEach(e => {
+                breakdown[e.category] = (breakdown[e.category] || 0) + Number(e.amount)
+            })
 
         // Sort Top 3
         const topExpenses = Object.entries(breakdown)

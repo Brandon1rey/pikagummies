@@ -21,12 +21,6 @@ export type Database = {
                     qty_used: number
                     raw_material_id: string | null
                 }
-                Insert: {
-                    id?: string
-                    production_batch_id?: string | null
-                    qty_used: number
-                    raw_material_id?: string | null
-                }
                 Update: {
                     id?: string
                     production_batch_id?: string | null
@@ -48,6 +42,79 @@ export type Database = {
                         referencedRelation: "raw_materials"
                         referencedColumns: ["id"]
                     },
+                ]
+            }
+            crm_conversations: {
+                Row: {
+                    id: string
+                    organization_id: string
+                    customer_phone: string
+                    sender: string
+                    message_body: string
+                    intent_detected: string | null
+                    created_at: string | null
+                }
+                Insert: {
+                    id?: string
+                    organization_id: string
+                    customer_phone: string
+                    sender: string
+                    message_body: string
+                    intent_detected?: string | null
+                    created_at?: string | null
+                }
+                Update: {
+                    id?: string
+                    organization_id?: string
+                    customer_phone?: string
+                    sender?: string
+                    message_body?: string
+                    intent_detected?: string | null
+                    created_at?: string | null
+                }
+                Relationships: [
+                    {
+                        foreignKeyName: "crm_conversations_organization_id_fkey"
+                        columns: ["organization_id"]
+                        isOneToOne: false
+                        referencedRelation: "organizations"
+                        referencedColumns: ["id"]
+                    }
+                ]
+            }
+            crm_customers: {
+                Row: {
+                    id: string
+                    organization_id: string
+                    phone: string
+                    name: string | null
+                    tags: string[] | null
+                    created_at: string | null
+                }
+                Insert: {
+                    id?: string
+                    organization_id: string
+                    phone: string
+                    name?: string | null
+                    tags?: string[] | null
+                    created_at?: string | null
+                }
+                Update: {
+                    id?: string
+                    organization_id?: string
+                    phone?: string
+                    name?: string | null
+                    tags?: string[] | null
+                    created_at?: string | null
+                }
+                Relationships: [
+                    {
+                        foreignKeyName: "crm_customers_organization_id_fkey"
+                        columns: ["organization_id"]
+                        isOneToOne: false
+                        referencedRelation: "organizations"
+                        referencedColumns: ["id"]
+                    }
                 ]
             }
             expenses: {
@@ -164,6 +231,121 @@ export type Database = {
                 }
                 Relationships: []
             }
+            organization_channels: {
+                Row: {
+                    organization_id: string
+                    platform: string
+                    phone_number_id: string
+                    api_key_ref: string | null
+                    created_at: string | null
+                }
+                Insert: {
+                    organization_id: string
+                    platform?: string
+                    phone_number_id: string
+                    api_key_ref?: string | null
+                    created_at?: string | null
+                }
+                Update: {
+                    organization_id?: string
+                    platform?: string
+                    phone_number_id?: string
+                    api_key_ref?: string | null
+                    created_at?: string | null
+                }
+                Relationships: [
+                    {
+                        foreignKeyName: "organization_channels_organization_id_fkey"
+                        columns: ["organization_id"]
+                        isOneToOne: false
+                        referencedRelation: "organizations"
+                        referencedColumns: ["id"]
+                    }
+                ]
+            }
+            organization_settings: {
+                Row: {
+                    organization_id: string
+                    module_inventory: boolean | null
+                    module_production: boolean | null
+                    module_recipes: boolean | null
+                    module_team: boolean | null
+                    theme_primary_color: string | null
+                    theme_radius: string | null
+                    logo_url: string | null
+                    business_description: string | null
+                    terminology: Json | null
+                    theme_mode: string | null
+                    theme_background: string | null
+                    theme_foreground: string | null
+                    theme_accent: string | null
+                    theme_preset: string | null
+                }
+                Insert: {
+                    organization_id: string
+                    module_inventory?: boolean | null
+                    module_production?: boolean | null
+                    module_recipes?: boolean | null
+                    module_team?: boolean | null
+                    theme_primary_color?: string | null
+                    theme_radius?: string | null
+                    logo_url?: string | null
+                    business_description?: string | null
+                    terminology?: Json | null
+                    theme_mode?: string | null
+                    theme_background?: string | null
+                    theme_foreground?: string | null
+                    theme_accent?: string | null
+                    theme_preset?: string | null
+                }
+                Update: {
+                    organization_id?: string
+                    module_inventory?: boolean | null
+                    module_production?: boolean | null
+                    module_recipes?: boolean | null
+                    module_team?: boolean | null
+                    theme_primary_color?: string | null
+                    theme_radius?: string | null
+                    logo_url?: string | null
+                    business_description?: string | null
+                    terminology?: Json | null
+                    theme_mode?: string | null
+                    theme_background?: string | null
+                    theme_foreground?: string | null
+                    theme_accent?: string | null
+                    theme_preset?: string | null
+                }
+                Relationships: [
+                    {
+                        foreignKeyName: "organization_settings_organization_id_fkey"
+                        columns: ["organization_id"]
+                        isOneToOne: true
+                        referencedRelation: "organizations"
+                        referencedColumns: ["id"]
+                    }
+                ]
+            }
+            platform_admins: {
+                Row: {
+                    id: string
+                    email: string
+                    name: string | null
+                    created_at: string | null
+                }
+                Insert: {
+                    id?: string
+                    email: string
+                    name?: string | null
+                    created_at?: string | null
+                }
+                Update: {
+                    id?: string
+                    email?: string
+                    name?: string | null
+                    created_at?: string | null
+                }
+                Relationships: []
+            }
             production_batches: {
                 Row: {
                     created_at: string | null
@@ -204,6 +386,9 @@ export type Database = {
                     avatar_url: string | null
                     email: string | null
                     full_name: string | null
+                    phone: string | null
+                    telegram_id: string | null
+                    organization_id: string | null
                     id: string
                     is_admin: boolean | null
                     role: string | null
@@ -213,6 +398,9 @@ export type Database = {
                     avatar_url?: string | null
                     email?: string | null
                     full_name?: string | null
+                    phone?: string | null
+                    telegram_id?: string | null
+                    organization_id?: string | null
                     id: string
                     is_admin?: boolean | null
                     role?: string | null
@@ -222,6 +410,9 @@ export type Database = {
                     avatar_url?: string | null
                     email?: string | null
                     full_name?: string | null
+                    phone?: string | null
+                    telegram_id?: string | null
+                    organization_id?: string | null
                     id?: string
                     is_admin?: boolean | null
                     role?: string | null
@@ -236,6 +427,8 @@ export type Database = {
                     emoji: string | null
                     id: string
                     is_active: boolean | null
+                    package_weight: number | null
+                    weight_unit: string | null
                     name: string
                     unit: string
                 }
@@ -245,6 +438,8 @@ export type Database = {
                     emoji?: string | null
                     id?: string
                     is_active?: boolean | null
+                    package_weight?: number | null
+                    weight_unit?: string | null
                     name: string
                     unit: string
                 }
@@ -254,6 +449,8 @@ export type Database = {
                     emoji?: string | null
                     id?: string
                     is_active?: boolean | null
+                    package_weight?: number | null
+                    weight_unit?: string | null
                     name?: string
                     unit?: string
                 }
@@ -376,6 +573,27 @@ export type Database = {
                         referencedColumns: ["id"]
                     },
                 ]
+            }
+            webhook_events: {
+                Row: {
+                    id: string
+                    event_id: string
+                    processed_at: string | null
+                    payload: Json | null
+                }
+                Insert: {
+                    id?: string
+                    event_id: string
+                    processed_at?: string | null
+                    payload?: Json | null
+                }
+                Update: {
+                    id?: string
+                    event_id?: string
+                    processed_at?: string | null
+                    payload?: Json | null
+                }
+                Relationships: []
             }
         }
         Views: {

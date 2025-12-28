@@ -46,8 +46,8 @@ export async function POST(request: NextRequest) {
         }
 
         // 3. Find profile by BOTH user_id AND phone (dual-factor security)
-        const { data: profile, error: profileError } = await supabase
-            .from('profiles')
+        const { data: profile, error: profileError } = await (supabase
+            .from('profiles') as any)
             .select('id, full_name, phone, organization_id, role')
             .eq('id', user_id)
             .single()
@@ -69,8 +69,8 @@ export async function POST(request: NextRequest) {
         }
 
         // 5. Link the Telegram ID
-        const { error: updateError } = await supabase
-            .from('profiles')
+        const { error: updateError } = await (supabase
+            .from('profiles') as any)
             .update({ telegram_id: telegram_id })
             .eq('id', user_id)
 
@@ -81,8 +81,8 @@ export async function POST(request: NextRequest) {
         // 6. Get organization info for confirmation
         let orgName = null
         if (profile.organization_id) {
-            const { data: org } = await supabase
-                .from('organizations')
+            const { data: org } = await (supabase
+                .from('organizations') as any)
                 .select('name')
                 .eq('id', profile.organization_id)
                 .single()

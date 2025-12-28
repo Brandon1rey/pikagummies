@@ -36,8 +36,7 @@ export async function POST(request: NextRequest) {
         const supabase = createServiceRoleClient()
 
         // 1. Check if material already exists (by normalized name)
-        const { data: existingMaterial } = await supabase
-            .from('raw_materials')
+        const { data: existingMaterial } = await (supabase.from('raw_materials') as any)
             .select('id, name, unit, current_stock, average_cost')
             .eq('organization_id', payload.organization_id)
             .eq('name', normalizedName)
@@ -82,8 +81,7 @@ export async function POST(request: NextRequest) {
             const newAvgCost = newStock > 0 ? newTotal / newStock : 0
 
             // Update existing material
-            const { error: updateError } = await supabase
-                .from('raw_materials')
+            const { error: updateError } = await (supabase.from('raw_materials') as any)
                 .update({
                     current_stock: newStock,
                     average_cost: newAvgCost
@@ -94,7 +92,7 @@ export async function POST(request: NextRequest) {
 
             // ✅ RECORD EXPENSE for this purchase
             if (payload.total_price > 0) {
-                await supabase.from('expenses').insert({
+                await (supabase.from('expenses') as any).insert({
                     category: 'materiales',
                     amount: payload.total_price,
                     description: `Compra: ${normalizedName} (${payload.qty} ${normalizedUnit})`,
@@ -118,8 +116,7 @@ export async function POST(request: NextRequest) {
             // New material - create it
             const avgCost = payload.qty > 0 ? payload.total_price / payload.qty : 0
 
-            const { data: newMaterial, error: insertError } = await supabase
-                .from('raw_materials')
+            const { data: newMaterial, error: insertError } = await (supabase.from('raw_materials') as any)
                 .insert({
                     name: normalizedName,
                     unit: normalizedUnit,
@@ -139,7 +136,7 @@ export async function POST(request: NextRequest) {
 
             // ✅ RECORD EXPENSE for this purchase
             if (payload.total_price > 0) {
-                await supabase.from('expenses').insert({
+                await (supabase.from('expenses') as any).insert({
                     category: 'materiales',
                     amount: payload.total_price,
                     description: `Compra: ${normalizedName} (${payload.qty} ${normalizedUnit})`,

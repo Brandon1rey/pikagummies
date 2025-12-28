@@ -32,8 +32,8 @@ export async function POST(request: NextRequest) {
         );
 
         // Verify product belongs to org first
-        const { data: product, error: productError } = await supabase
-            .from('finished_products')
+        const { data: product, error: productError } = await (supabase
+            .from('finished_products') as any)
             .select('id, name')
             .eq('id', product_id)
             .eq('organization_id', organization_id)
@@ -62,8 +62,8 @@ export async function POST(request: NextRequest) {
         }
 
         // Also HARD DELETE the product (permanently remove from DB)
-        const { error: deleteProductError } = await supabase
-            .from('finished_products')
+        const { error: deleteProductError } = await (supabase
+            .from('finished_products') as any)
             .delete()
             .eq('id', product_id)
             .eq('organization_id', organization_id);
