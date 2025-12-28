@@ -18,7 +18,6 @@ export const dynamic = 'force-dynamic'
 export const revalidate = 0
 
 // NOTE: This page is protected by the (super-admin)/layout.tsx which checks isSuperAdmin()
-// Only users with email in NEXT_PUBLIC_SUPER_ADMIN_EMAIL can access this page
 
 interface OrgMetrics {
     id: string
