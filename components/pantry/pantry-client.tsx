@@ -16,9 +16,10 @@ import confetti from "canvas-confetti"
 interface PantryClientProps {
     initialStock: RawMaterial[]
     user: any
+    organizationId: string
 }
 
-export function PantryClient({ initialStock, user }: PantryClientProps) {
+export function PantryClient({ initialStock, user, organizationId }: PantryClientProps) {
     const supabase = createClient()
     const [loading, setLoading] = useState(false)
 
@@ -46,7 +47,8 @@ export function PantryClient({ initialStock, user }: PantryClientProps) {
                 p_qty: Number(qty),
                 p_total_price: Number(totalPrice),
                 p_emoji: emoji,
-                p_user_id: user.id
+                p_user_id: user.id,
+                p_organization_id: organizationId
             })
 
             if (error) throw error

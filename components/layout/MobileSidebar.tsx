@@ -2,10 +2,9 @@
 
 import { useState } from "react"
 import { Menu, X } from "lucide-react"
-import { Sidebar } from "./Sidebar"
 import { cn } from "@/lib/utils"
 
-export function MobileSidebar() {
+export function MobileSidebar({ children }: { children: React.ReactNode }) {
     const [isOpen, setIsOpen] = useState(false)
 
     return (
@@ -45,8 +44,8 @@ export function MobileSidebar() {
                 </button>
 
                 {/* Sidebar Content */}
-                <div onClick={() => setIsOpen(false)}>
-                    <Sidebar />
+                <div onClick={() => setIsOpen(false)} className="h-full">
+                    {children}
                 </div>
             </aside>
         </>

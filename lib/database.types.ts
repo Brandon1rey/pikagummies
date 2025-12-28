@@ -143,6 +143,27 @@ export type Database = {
                 }
                 Relationships: []
             }
+            organizations: {
+                Row: {
+                    created_at: string | null
+                    id: string
+                    name: string
+                    slug: string
+                }
+                Insert: {
+                    created_at?: string | null
+                    id?: string
+                    name: string
+                    slug: string
+                }
+                Update: {
+                    created_at?: string | null
+                    id?: string
+                    name?: string
+                    slug?: string
+                }
+                Relationships: []
+            }
             production_batches: {
                 Row: {
                     created_at: string | null

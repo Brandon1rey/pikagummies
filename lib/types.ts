@@ -22,6 +22,9 @@ export interface FinishedProduct {
     description: string | null
     sale_price: number
     current_stock: number
+    unit?: string
+    package_weight?: number
+    weight_unit?: string
     is_public: boolean
     is_active: boolean
 }

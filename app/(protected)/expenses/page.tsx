@@ -8,6 +8,27 @@ export default async function ExpensesPage() {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) redirect('/login')
 
+    // 1. Try Metadata
+    let organizationId = user.user_metadata.organization_id
+
+    // 2. Fallback to Profile
+    if (!organizationId) {
+        const { data: profile } = await supabase
+            .from('profiles')
+            .select('organization_id')
+            .eq('id', user.id)
+            .single()
+        organizationId = profile?.organization_id
+    }
+
+    if (!organizationId) {
+        return (
+            <div className="flex h-full items-center justify-center text-stone-500">
+                No Organization Selected
+            </div>
+        )
+    }
+
     // Fetch recent expenses
     const { data: recentExpenses, error: expensesError } = await supabase
         .from('expenses')
@@ -41,5 +62,5 @@ export default async function ExpensesPage() {
         created_by_email: profileMap.get(exp.created_by || '') || null
     })) || []
 
-    return <ExpensesClient expenses={expenses} user={user} />
+    return <ExpensesClient expenses={expenses} user={user} organizationId={organizationId} />
 }

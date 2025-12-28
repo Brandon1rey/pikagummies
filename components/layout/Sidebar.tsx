@@ -1,167 +1,196 @@
-'use client'
+import Link from "next/link";
+import { createClient } from "@/lib/supabase/server";
+import { isSuperAdmin } from "@/lib/auth/super-admin";
+import {
+    LayoutDashboard,
+    ChefHat,
+    ShoppingCart,
+    Package,
+    DollarSign,
+    Users,
+    ShieldCheck,
+    User,
+    Tag,
+    LogOut,
+    Settings,
+    Crown,
+    FileText
+} from "lucide-react";
+import { cn } from "@/lib/utils";
+import { signOut } from "@/app/actions/auth";
+import { Button } from "@/components/ui/button";
 
-import Link from "next/link"
-import { usePathname } from "next/navigation"
-import { cn } from "@/lib/utils"
-import { LayoutDashboard, UtensilsCrossed, ShoppingBasket, DollarSign, Users, CreditCard, LogOut, ChefHat, User } from "lucide-react"
-import { createClient } from "@/lib/supabase/client"
-import { useEffect, useState } from "react"
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { useRouter } from "next/navigation"
-import { toast } from "sonner"
+// Define the shape of our dynamic terminology
+interface Terminology {
+    kitchen: string;
+    pantry: string;
+    recipes: string;
+    production: string;
+}
 
-const routes = [
-    {
-        label: "Dashboard",
-        icon: LayoutDashboard,
-        href: "/",
-        color: "text-sky-500",
-    },
-    {
-        label: "Pantry",
-        icon: ShoppingBasket,
-        href: "/pantry",
-        color: "text-emerald-500",
-    },
-    {
-        label: "Kitchen",
-        icon: ChefHat,
-        href: "/kitchen",
-        color: "text-orange-500",
-    },
-    {
-        label: "Sales",
-        icon: DollarSign,
-        href: "/sales",
-        color: "text-green-500",
-    },
-    {
-        label: "Expenses",
-        icon: CreditCard,
-        href: "/expenses",
-        color: "text-red-500",
-    },
-    {
-        label: "Team",
-        icon: Users,
-        href: "/team",
-        color: "text-violet-500",
-    },
-]
+const defaultTerms: Terminology = {
+    kitchen: "Kitchen",
+    pantry: "Pantry",
+    recipes: "Recipes",
+    production: "Production"
+};
 
-export function Sidebar() {
-    const pathname = usePathname()
-    const router = useRouter()
-    const [profile, setProfile] = useState<any>(null)
-    const supabase = createClient()
+export default async function Sidebar() {
+    const supabase = await createClient();
 
-    useEffect(() => {
-        const getProfile = async () => {
-            const { data: { user } } = await supabase.auth.getUser()
-            if (user) {
-                const { data } = await supabase
-                    .from('profiles')
-                    .select('*')
-                    .eq('id', user.id)
-                    .single()
-                setProfile(data)
-            }
-        }
-        getProfile()
-    }, [])
+    // 1. Get Current User safely
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return null;
 
-    const handleLogout = async () => {
-        await supabase.auth.signOut()
-        router.push('/login')
-        toast.success("Logged out successfully")
+    // Check if user is platform admin (god mode)
+    const isPlatformAdmin = await isSuperAdmin();
+
+    // 2. Fetch Profile & Org Data
+    // We need to JOIN the organization table to get the name
+    const { data: profile, error: profileError } = await supabase
+        .from("profiles")
+        .select(`
+            *,
+            organizations ( name ) 
+        `)
+        .eq("id", user.id)
+        .single();
+
+    console.log("--- SIDEBAR DEBUG ---");
+    console.log("User ID:", user.id);
+    console.log("Profile Error:", profileError);
+    console.log("Profile Data:", profile);
+    console.log("Org Data (Nested):", profile?.organizations);
+    console.log("---------------------");
+
+    // 3. Fetch Settings (Separate query for cleanliness)
+    let settings = null;
+    if (profile?.organization_id) {
+        const { data } = await supabase
+            .from("organization_settings")
+            .select("*")
+            .eq("organization_id", profile.organization_id)
+            .single();
+        settings = data;
     }
 
+    // 4. Determine Branding
+    const companyName = (profile?.organizations as { name?: string })?.name || "NegocIA";
+
+    // 5. Define Menu with Logic
+    const terms = (settings?.terminology as Terminology | undefined) || defaultTerms;
+
+    const menuItems = [
+        { label: "Dashboard", href: "/", icon: LayoutDashboard, visible: true },
+        // Inventory is usually core, but we can check module_inventory if we want. 
+        // For now, we assume "Simple Stock" implies Inventory is ON.
+        { label: terms.pantry, href: "/pantry", icon: Package, visible: settings?.module_inventory !== false },
+
+        // Kitchen & Recipes are ONLY for Crafting
+        { label: terms.kitchen, href: "/kitchen", icon: ChefHat, visible: settings?.module_production === true },
+
+        // Pricing is for EVERYONE now (User Request)
+        { label: "Pricing", href: "/pricing", icon: Tag, visible: true },
+
+        { label: "Sales", href: "/sales", icon: ShoppingCart, visible: true },
+        { label: "Expenses", href: "/expenses", icon: DollarSign, visible: true },
+        { label: "Reportes", href: "/reports", icon: FileText, visible: true },
+        { label: "Team", href: "/team", icon: Users, visible: settings?.module_team !== false },
+        { label: "Invites", href: "/team/invites", icon: Users, visible: settings?.module_team !== false && (profile?.role === 'owner' || profile?.role === 'admin') },
+        { label: "Profile", href: "/team/profile", icon: User, visible: true },
+    ];
+
     return (
-        <div className="space-y-4 py-4 flex flex-col h-full text-white">
-            <div className="px-3 py-2 flex-1">
-                <Link href="/" className="flex items-center pl-3 mb-14">
-                    <div className="relative h-8 w-8 mr-4">
-                        <UtensilsCrossed className="h-8 w-8 text-orange-500" />
-                    </div>
-                    <h1 className="text-2xl font-bold bg-gradient-to-r from-orange-500 to-red-600 bg-clip-text text-transparent">
-                        Pikagoma
-                    </h1>
-                </Link>
-                <div className="space-y-1">
-                    {routes.map((route) => (
+        <div className="flex h-full w-64 flex-col bg-stone-950 text-white border-r border-stone-800">
+            {/* Header */}
+            <div className="flex h-16 items-center px-6 border-b border-stone-800">
+                <span className="text-xl font-bold text-primary truncate">
+                    {companyName}
+                </span>
+            </div>
+
+            {/* Nav Items */}
+            <div className="flex-1 overflow-y-auto py-4">
+                <nav className="space-y-1 px-4">
+                    {menuItems.filter(item => item.visible).map((item) => (
                         <Link
-                            key={route.href}
-                            href={route.href}
+                            key={item.href}
+                            href={item.href}
                             className={cn(
-                                "text-sm group flex p-3 w-full justify-start font-medium cursor-pointer hover:text-white hover:bg-white/10 rounded-lg transition",
-                                pathname === route.href ? "text-white bg-white/10 border-r-2 border-orange-500" : "text-zinc-400"
+                                "flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors",
+                                "text-stone-400 hover:bg-stone-900 hover:text-orange-500"
                             )}
                         >
-                            <div className="flex items-center flex-1">
-                                <route.icon className={cn("h-5 w-5 mr-3", route.color)} />
-                                {route.label}
-                            </div>
+                            <item.icon className="h-5 w-5" />
+                            {item.label}
                         </Link>
                     ))}
 
-                    {/* Invites - Accessible to all */}
-                    <Link
-                        href="/team/invites"
-                        className={cn(
-                            "text-sm group flex p-3 w-full justify-start font-medium cursor-pointer hover:text-white hover:bg-white/10 rounded-lg transition",
-                            pathname === "/team/invites" ? "text-white bg-white/10 border-r-2 border-purple-500" : "text-zinc-400"
-                        )}
-                    >
-                        <div className="flex items-center flex-1">
-                            <div className="h-5 w-5 mr-3 flex items-center justify-center">
-                                <span className="text-lg">🎟️</span>
-                            </div>
-                            Invites
+                    {/* ADMIN ZONE - For org admins */}
+                    {(profile?.role === 'owner' || profile?.role === 'admin') && (
+                        <div className="pt-8 mt-4 border-t border-stone-800">
+                            <p className="px-3 text-xs font-semibold text-stone-500 uppercase tracking-wider mb-2">
+                                Admin Zone
+                            </p>
+                            <Link
+                                href="/admin/settings"
+                                className="flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium text-blue-400 hover:bg-blue-950/30 hover:text-blue-300"
+                            >
+                                <Settings className="h-5 w-5" />
+                                Appearance
+                            </Link>
+                            <Link
+                                href="/admin/team"
+                                className="flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium text-stone-400 hover:bg-stone-900 hover:text-white"
+                            >
+                                <Users className="h-5 w-5" />
+                                Team Management
+                            </Link>
                         </div>
-                    </Link>
-                </div>
+                    )}
+
+                    {/* PLATFORM ADMIN - Only for god mode */}
+                    {isPlatformAdmin && (
+                        <div className="pt-4 mt-4 border-t border-red-900/30">
+                            <p className="px-3 text-xs font-semibold text-red-500 uppercase tracking-wider mb-2">
+                                🔒 Platform Owner
+                            </p>
+                            <Link
+                                href="/tenants"
+                                className="flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium text-red-400 hover:bg-red-950/30 hover:text-red-300"
+                            >
+                                <Crown className="h-5 w-5" />
+                                God Mode
+                            </Link>
+                        </div>
+                    )}
+                </nav>
             </div>
 
-            {/* User Profile Section */}
-            <div className="px-3 py-2 border-t border-white/10">
-                <Link href="/team/profile">
-                    <div className={cn(
-                        "flex items-center gap-x-3 mb-4 p-2 rounded-lg transition cursor-pointer",
-                        pathname === "/team/profile" ? "bg-white/10" : "hover:bg-white/5"
-                    )}>
-                        {profile ? (
-                            <>
-                                <Avatar>
-                                    <AvatarImage src={profile.avatar_url} />
-                                    <AvatarFallback className="bg-orange-500/20 text-orange-500">
-                                        {profile.full_name?.[0] || 'U'}
-                                    </AvatarFallback>
-                                </Avatar>
-                                <div className="flex flex-col overflow-hidden">
-                                    <p className="text-sm font-medium text-white truncate">
-                                        {profile.full_name || 'User'}
-                                    </p>
-                                    <p className="text-xs text-zinc-400 truncate">
-                                        {profile.role}
-                                    </p>
-                                </div>
-                            </>
-                        ) : (
-                            <div className="h-10 w-full bg-white/5 animate-pulse rounded-lg" />
-                        )}
+            {/* Footer with User Info and Logout */}
+            <div className="border-t border-stone-800 p-4 bg-stone-925 space-y-3">
+                <div className="flex items-center gap-3">
+                    <div className="h-8 w-8 rounded-full bg-orange-600/20 flex items-center justify-center text-orange-500 font-bold">
+                        {profile?.full_name?.[0] || "U"}
                     </div>
-                </Link>
+                    <div className="flex flex-col flex-1 min-w-0">
+                        <span className="text-sm font-medium text-white truncate">{profile?.full_name}</span>
+                        <span className="text-xs text-stone-500 capitalize">{profile?.role}</span>
+                    </div>
+                </div>
 
-                <button
-                    onClick={handleLogout}
-                    className="text-sm group flex p-3 w-full justify-start font-medium cursor-pointer text-zinc-400 hover:text-red-500 hover:bg-red-500/10 rounded-lg transition"
-                >
-                    <div className="flex items-center flex-1">
-                        <LogOut className="h-5 w-5 mr-3" />
-                        Logout
-                    </div>
-                </button>
+                {/* Logout Button */}
+                <form action={signOut}>
+                    <Button
+                        type="submit"
+                        variant="ghost"
+                        className="w-full justify-start text-stone-400 hover:text-red-400 hover:bg-red-950/20"
+                    >
+                        <LogOut className="h-4 w-4 mr-2" />
+                        Sign Out
+                    </Button>
+                </form>
             </div>
         </div>
-    )
+    );
 }

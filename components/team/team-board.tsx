@@ -32,9 +32,10 @@ interface TeamPost {
 interface TeamBoardProps {
     initialPosts: any[]; // Using any to bypass complex join typing for now, but structure is known
     currentUserId: string;
+    organizationId: string;
 }
 
-export function TeamBoard({ initialPosts, currentUserId }: TeamBoardProps) {
+export function TeamBoard({ initialPosts, currentUserId, organizationId }: TeamBoardProps) {
     const supabase = createClient();
     const router = useRouter();
     const [content, setContent] = useState("");
@@ -52,7 +53,8 @@ export function TeamBoard({ initialPosts, currentUserId }: TeamBoardProps) {
                     content,
                     type,
                     author_id: currentUserId, // RLS will verify this matches auth.uid()
-                    is_resolved: false
+                    is_resolved: false,
+                    organization_id: organizationId
                 });
 
             if (error) throw error;

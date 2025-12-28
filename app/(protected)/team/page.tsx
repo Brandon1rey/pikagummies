@@ -13,6 +13,27 @@ export default async function TeamPage() {
         return redirect("/login");
     }
 
+    // 1. Try Metadata
+    let organizationId = user.user_metadata.organization_id
+
+    // 2. Fallback to Profile
+    if (!organizationId) {
+        const { data: profile } = await supabase
+            .from('profiles')
+            .select('organization_id')
+            .eq('id', user.id)
+            .single()
+        organizationId = profile?.organization_id
+    }
+
+    if (!organizationId) {
+        return (
+            <div className="flex h-full items-center justify-center text-stone-500">
+                No Organization Selected
+            </div>
+        )
+    }
+
     // Fetch team posts with author details
     const { data: posts } = await supabase
         .from("team_posts")
@@ -35,7 +56,7 @@ export default async function TeamPage() {
                 </p>
             </div>
 
-            <TeamBoard initialPosts={posts || []} currentUserId={user.id} />
+            <TeamBoard initialPosts={posts || []} currentUserId={user.id} organizationId={organizationId} />
         </div>
     );
 }

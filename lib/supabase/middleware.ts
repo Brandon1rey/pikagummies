@@ -17,7 +17,7 @@ export async function updateSession(request: NextRequest) {
                     return request.cookies.getAll()
                 },
                 setAll(cookiesToSet) {
-                    cookiesToSet.forEach(({ name, value, options }) => request.cookies.set(name, value))
+                    cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value))
                     response = NextResponse.next({
                         request: {
                             headers: request.headers,
@@ -31,26 +31,38 @@ export async function updateSession(request: NextRequest) {
         }
     )
 
+    // IMPORTANT: DO NOT REMOVE auth.getUser()
     const {
         data: { user },
     } = await supabase.auth.getUser()
 
-    // Protected routes logic
-    // If user is NOT signed in and the current path is NOT /login or /invite or /auth/*
-    if (
-        !user &&
-        !request.nextUrl.pathname.startsWith('/login') &&
-        !request.nextUrl.pathname.startsWith('/auth') &&
-        !request.nextUrl.pathname.startsWith('/invite')
-    ) {
-        // Redirect to login
+    const path = request.nextUrl.pathname
+
+    // Protected Routes - All routes that require authentication
+    const isProtectedRoute =
+        path === '/' ||
+        path.startsWith('/dashboard') ||
+        path.startsWith('/pantry') ||
+        path.startsWith('/sales') ||
+        path.startsWith('/inventory') ||
+        path.startsWith('/kitchen') ||
+        path.startsWith('/expenses') ||
+        path.startsWith('/team') ||
+        path.startsWith('/admin') ||
+        path.startsWith('/pricing')
+
+    // Auth Routes - Routes that should redirect to dashboard if already logged in
+    const isAuthRoute = path === '/login' || path === '/register' || path === '/signup'
+
+    // Redirect unauthenticated users to login
+    if (!user && isProtectedRoute) {
         const url = request.nextUrl.clone()
         url.pathname = '/login'
         return NextResponse.redirect(url)
     }
 
-    // If user IS signed in and tries to go to /login or /invite
-    if (user && (request.nextUrl.pathname.startsWith('/login') || request.nextUrl.pathname.startsWith('/invite'))) {
+    // Redirect authenticated users away from auth pages
+    if (user && isAuthRoute) {
         const url = request.nextUrl.clone()
         url.pathname = '/'
         return NextResponse.redirect(url)

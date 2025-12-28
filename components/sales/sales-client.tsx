@@ -19,33 +19,39 @@ interface SalesClientProps {
     products: FinishedProduct[]
     recentSales: SaleRecord[]
     user: any
+    organizationId: string
 }
 
-export function SalesClient({ products, recentSales, user }: SalesClientProps) {
+export function SalesClient({ products, recentSales, user, organizationId }: SalesClientProps) {
     const supabase = createClient()
     const [loading, setLoading] = useState(false)
     const [productOpen, setProductOpen] = useState(false)
 
     // Form State
     const [selectedProduct, setSelectedProduct] = useState<FinishedProduct | null>(null)
-    const [quantity, setQuantity] = useState<number | "">(1)
+    const [quantity, setQuantity] = useState<string>("1")
 
     // Calculated total
-    const totalPrice = selectedProduct && typeof quantity === 'number'
-        ? selectedProduct.sale_price * quantity
+    // Helper to safely parse quantity
+    const qtyNumber = parseFloat(quantity)
+    const isValidQty = !isNaN(qtyNumber) && qtyNumber > 0
+
+    const totalPrice = selectedProduct && isValidQty
+        ? selectedProduct.sale_price * qtyNumber
         : 0
 
     const handleSale = async (e: React.FormEvent) => {
         e.preventDefault()
-        if (!selectedProduct || !quantity) return
+        if (!selectedProduct || !isValidQty) return
 
         setLoading(true)
         try {
             const { error } = await supabase.rpc('record_manual_sale', {
                 p_product_id: selectedProduct.id,
-                p_qty: Number(quantity),
+                p_qty: Number(qtyNumber),
                 p_payment_method: 'cash', // Default for now
-                p_user_id: user.id
+                p_user_id: user.id,
+                p_organization_id: organizationId
             })
 
             if (error) throw error
@@ -63,15 +69,21 @@ export function SalesClient({ products, recentSales, user }: SalesClientProps) {
 
             // Reset form
             setSelectedProduct(null)
-            setQuantity(1)
+            setQuantity("1")
 
             // Refresh page data
             window.location.reload()
         } catch (error: any) {
             console.error("Sale Error:", error)
             console.error("Error Details:", JSON.stringify(error, null, 2))
+            // User-friendly error mapping
+            let errorMessage = error?.message || "Check console for details"
+            if (errorMessage.includes("Not enough stock")) {
+                errorMessage = "No hay suficiente stock"
+            }
+
             toast.error("Failed to record sale", {
-                description: error?.message || "Check console for details"
+                description: errorMessage
             })
         } finally {
             setLoading(false)
@@ -140,15 +152,23 @@ export function SalesClient({ products, recentSales, user }: SalesClientProps) {
                             {/* Quantity Input */}
                             <div className="space-y-2">
                                 <Label className="text-zinc-400">How many?</Label>
-                                <Input
-                                    type="number"
-                                    min="1"
-                                    value={quantity}
-                                    onChange={(e) => setQuantity(e.target.value ? parseInt(e.target.value) : "")}
-                                    className="h-12 text-lg bg-black/20 border-white/10 text-white"
-                                    placeholder="1"
-                                    required
-                                />
+                                <div className="relative">
+                                    <Input
+                                        type="number"
+                                        min="0"
+                                        step="any"
+                                        value={quantity}
+                                        onChange={(e) => setQuantity(e.target.value)}
+                                        className="h-12 text-lg bg-black/20 border-white/10 text-white pr-16"
+                                        placeholder="1"
+                                        required
+                                    />
+                                    {selectedProduct?.unit && (
+                                        <div className="absolute right-3 top-1/2 -translate-y-1/2 text-zinc-500 pointer-events-none font-medium">
+                                            {selectedProduct.unit}
+                                        </div>
+                                    )}
+                                </div>
                             </div>
 
                             {/* Total Price Display */}
@@ -164,7 +184,7 @@ export function SalesClient({ products, recentSales, user }: SalesClientProps) {
                                         <TrendingUp className="h-12 w-12 text-green-500 opacity-50" />
                                     </div>
                                     <p className="text-xs text-zinc-500 mt-2">
-                                        {quantity} × ${selectedProduct.sale_price} per unit
+                                        {quantity} {selectedProduct.unit || 'units'} × ${selectedProduct.sale_price} per unit
                                     </p>
                                 </div>
                             )}
@@ -173,7 +193,7 @@ export function SalesClient({ products, recentSales, user }: SalesClientProps) {
                                 type="submit"
                                 size="lg"
                                 className="w-full bg-green-600 hover:bg-green-700 text-white font-bold h-14 text-lg"
-                                disabled={loading || !selectedProduct || !quantity}
+                                disabled={loading || !selectedProduct || !isValidQty}
                             >
                                 {loading ? <Loader2 className="animate-spin mr-2" /> : <DollarSign className="mr-2 h-5 w-5" />}
                                 {loading ? "Processing..." : "Confirm Sale"}

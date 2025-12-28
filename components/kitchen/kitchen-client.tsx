@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
 import { toast } from "sonner"
-import { Loader2, ChefHat, Flame, Scale, Plus, Trash2, Check, ChevronsUpDown, AlertTriangle, TrendingUp, TrendingDown } from "lucide-react"
+import { Loader2, ChefHat, Flame, Scale, Plus, Trash2, Check, ChevronsUpDown, AlertTriangle, TrendingUp, TrendingDown, X } from "lucide-react"
 import { Command, CommandEmpty, CommandGroup, CommandInput, CommandItem, CommandList } from "@/components/ui/command"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
@@ -21,6 +21,7 @@ interface KitchenClientProps {
     initialProducts: FinishedProduct[]
     initialMaterials: RawMaterial[]
     user: any
+    organizationId: string
 }
 
 interface IngredientLine {
@@ -30,7 +31,7 @@ interface IngredientLine {
     isCustom: boolean // If added manually
 }
 
-export function KitchenClient({ initialProducts, initialMaterials, user }: KitchenClientProps) {
+export function KitchenClient({ initialProducts, initialMaterials, user, organizationId }: KitchenClientProps) {
     const supabase = createClient()
 
     // State
@@ -49,6 +50,8 @@ export function KitchenClient({ initialProducts, initialMaterials, user }: Kitch
     const [newProductName, setNewProductName] = useState("")
     const [newProductPrice, setNewProductPrice] = useState("")
     const [creatingProduct, setCreatingProduct] = useState(false)
+    // Smart Recipe - ingredients for new product
+    const [newProductIngredients, setNewProductIngredients] = useState<{ material: RawMaterial, qty: number }[]>([])
 
     // Manage Products State
     const [manageProductsOpen, setManageProductsOpen] = useState(false)
@@ -66,7 +69,8 @@ export function KitchenClient({ initialProducts, initialMaterials, user }: Kitch
             console.log("Loading recipe for:", selectedProduct.name)
             try {
                 const { data, error } = await supabase.rpc('get_product_recipe', {
-                    p_product_id: selectedProduct.id
+                    p_product_id: selectedProduct.id,
+                    p_organization_id: organizationId
                 })
                 if (error) throw error
 
@@ -157,31 +161,67 @@ export function KitchenClient({ initialProducts, initialMaterials, user }: Kitch
         if (!newProductName || !newProductPrice) return
         setCreatingProduct(true)
         try {
-            const { data, error } = await supabase
-                .from('finished_products')
-                .insert({
-                    name: newProductName,
-                    sale_price: parseFloat(newProductPrice),
-                    current_stock: 0,
-                    is_active: true,
-                    is_public: true
-                })
-                .select()
-                .single()
+            // Build ingredients payload for smart recipe
+            const ingredientsPayload = newProductIngredients.map(ing => ({
+                raw_material_id: ing.material.id,
+                qty_required: ing.qty
+            }))
+
+            const { data, error } = await supabase.rpc('create_product_with_recipe', {
+                p_name: newProductName,
+                p_sale_price: parseFloat(newProductPrice),
+                p_ingredients: ingredientsPayload,
+                p_organization_id: organizationId
+            })
 
             if (error) throw error
 
-            toast.success("Product created!")
-            setSelectedProduct(data)
+            const result = data as { status: string; product_id?: string; message?: string }
+            if (result.status === 'error') {
+                throw new Error(result.message || 'Failed to create product')
+            }
+
+            toast.success("Product created with recipe!")
+            confetti({
+                particleCount: 100,
+                spread: 70,
+                origin: { y: 0.6 }
+            })
             setCreateProductOpen(false)
             setNewProductName("")
             setNewProductPrice("")
+            setNewProductIngredients([])
+            // Refresh to show new product
+            window.location.reload()
         } catch (error: any) {
             console.error(error)
             toast.error("Failed to create product", { description: error.message })
         } finally {
             setCreatingProduct(false)
         }
+    }
+
+    // Helper: Add ingredient to new product
+    const handleAddNewProductIngredient = (material: RawMaterial) => {
+        if (newProductIngredients.some(i => i.material.id === material.id)) {
+            toast.error("Ingredient already added!")
+            return
+        }
+        setNewProductIngredients([...newProductIngredients, { material, qty: 0 }])
+    }
+
+    // Helper: Update qty for new product ingredient
+    const handleUpdateNewProductIngredientQty = (index: number, qty: number) => {
+        const updated = [...newProductIngredients]
+        updated[index].qty = qty
+        setNewProductIngredients(updated)
+    }
+
+    // Helper: Remove ingredient from new product
+    const handleRemoveNewProductIngredient = (index: number) => {
+        const updated = [...newProductIngredients]
+        updated.splice(index, 1)
+        setNewProductIngredients(updated)
     }
 
     const handleCookBatch = async () => {
@@ -199,7 +239,8 @@ export function KitchenClient({ initialProducts, initialMaterials, user }: Kitch
                 p_product_id: selectedProduct.id,
                 p_qty_produced: batchSize,
                 p_ingredients: ingredientsPayload,
-                p_user_id: user.id
+                p_user_id: user.id,
+                p_organization_id: organizationId
             })
 
             if (error) throw error
@@ -245,8 +286,33 @@ export function KitchenClient({ initialProducts, initialMaterials, user }: Kitch
             window.location.reload()
         } catch (error: any) {
             console.error("Delete Error:", error)
-            console.error("Error Details:", JSON.stringify(error, null, 2))
-            toast.error("Failed to delete product", { description: error.message || "Unknown error" })
+
+            // Handle Foreign Key Violation (Product has history)
+            if (error.code === '23503') {
+                toast.info("Item has production history. Archiving instead.")
+                try {
+                    const { error: archiveError } = await supabase
+                        .from('finished_products')
+                        .update({ is_active: false })
+                        .eq('id', productId)
+                        .eq('organization_id', organizationId)
+
+                    if (archiveError) throw archiveError
+
+                    toast.success("Product archived successfully")
+                    if (selectedProduct?.id === productId) {
+                        setSelectedProduct(null)
+                        setIngredients([])
+                    }
+                    window.location.reload()
+                    return
+                } catch (archiveError: any) {
+                    console.error("Archive Error:", archiveError)
+                    toast.error("Failed to archive product", { description: archiveError.message })
+                }
+            } else {
+                toast.error("Failed to delete product", { description: error.message || "Unknown error" })
+            }
         } finally {
             setDeletingProduct(null)
         }
@@ -263,42 +329,130 @@ export function KitchenClient({ initialProducts, initialMaterials, user }: Kitch
                             The Pot
                         </SpicyCardTitle>
                         <div className="flex gap-2">
-                            <Dialog open={createProductOpen} onOpenChange={setCreateProductOpen}>
+                            <Dialog open={createProductOpen} onOpenChange={(open) => {
+                                setCreateProductOpen(open)
+                                if (!open) {
+                                    // Reset on close
+                                    setNewProductName("")
+                                    setNewProductPrice("")
+                                    setNewProductIngredients([])
+                                }
+                            }}>
                                 <DialogTrigger asChild>
                                     <Button variant="outline" size="sm" className="border-emerald-500/20 text-emerald-500 hover:bg-emerald-500/10">
                                         <Plus className="mr-2 h-4 w-4" /> New Product
                                     </Button>
                                 </DialogTrigger>
-                                <DialogContent className="bg-stone-950 border-white/10 text-white">
+                                <DialogContent className="bg-stone-950 border-white/10 text-white sm:max-w-[600px] max-h-[85vh] overflow-y-auto">
                                     <DialogHeader>
-                                        <DialogTitle>Create New Product</DialogTitle>
+                                        <DialogTitle>Create New Product with Recipe</DialogTitle>
                                     </DialogHeader>
                                     <div className="space-y-4 py-4">
-                                        <div className="space-y-2">
-                                            <Label>Product Name</Label>
-                                            <Input
-                                                placeholder="e.g. Super Sour Worms"
-                                                value={newProductName}
-                                                onChange={(e) => setNewProductName(e.target.value)}
-                                                className="bg-black/20 border-white/10"
-                                            />
+                                        {/* Basic Info */}
+                                        <div className="grid grid-cols-2 gap-4">
+                                            <div className="space-y-2">
+                                                <Label>Product Name</Label>
+                                                <Input
+                                                    placeholder="e.g. Super Sour Worms"
+                                                    value={newProductName}
+                                                    onChange={(e) => setNewProductName(e.target.value)}
+                                                    className="bg-black/20 border-white/10"
+                                                />
+                                            </div>
+                                            <div className="space-y-2">
+                                                <Label>Sale Price ($)</Label>
+                                                <Input
+                                                    type="number"
+                                                    placeholder="0.00"
+                                                    value={newProductPrice}
+                                                    onChange={(e) => setNewProductPrice(e.target.value)}
+                                                    className="bg-black/20 border-white/10"
+                                                />
+                                            </div>
                                         </div>
-                                        <div className="space-y-2">
-                                            <Label>Sale Price ($)</Label>
-                                            <Input
-                                                type="number"
-                                                placeholder="0.00"
-                                                value={newProductPrice}
-                                                onChange={(e) => setNewProductPrice(e.target.value)}
-                                                className="bg-black/20 border-white/10"
-                                            />
+
+                                        {/* Recipe Ingredients Section */}
+                                        <div className="space-y-3 pt-4 border-t border-white/10">
+                                            <div className="flex items-center justify-between">
+                                                <Label className="text-base">Recipe Ingredients</Label>
+                                                <Popover>
+                                                    <PopoverTrigger asChild>
+                                                        <Button variant="outline" size="sm" className="border-orange-500/20 text-orange-500 hover:bg-orange-500/10">
+                                                            <Plus className="h-4 w-4 mr-1" /> Add Ingredient
+                                                        </Button>
+                                                    </PopoverTrigger>
+                                                    <PopoverContent className="w-64 p-0 bg-stone-950 border-white/10">
+                                                        <Command className="bg-transparent">
+                                                            <CommandInput placeholder="Search materials..." className="border-b border-white/10" />
+                                                            <CommandList>
+                                                                <CommandEmpty>No materials found.</CommandEmpty>
+                                                                <CommandGroup>
+                                                                    {initialMaterials.map(mat => (
+                                                                        <CommandItem
+                                                                            key={mat.id}
+                                                                            value={mat.name}
+                                                                            onSelect={() => handleAddNewProductIngredient(mat)}
+                                                                            className="cursor-pointer"
+                                                                        >
+                                                                            {mat.name}
+                                                                            <span className="ml-auto text-xs text-muted-foreground">
+                                                                                {mat.current_stock} {mat.unit}
+                                                                            </span>
+                                                                        </CommandItem>
+                                                                    ))}
+                                                                </CommandGroup>
+                                                            </CommandList>
+                                                        </Command>
+                                                    </PopoverContent>
+                                                </Popover>
+                                            </div>
+
+                                            {/* Ingredient List */}
+                                            {newProductIngredients.length === 0 ? (
+                                                <p className="text-sm text-muted-foreground text-center py-4 border border-dashed border-white/10 rounded-lg">
+                                                    No ingredients added yet. Click "Add Ingredient" to build your recipe.
+                                                </p>
+                                            ) : (
+                                                <div className="space-y-2">
+                                                    {newProductIngredients.map((ing, idx) => (
+                                                        <div key={ing.material.id} className="flex items-center gap-2 p-2 rounded-lg bg-stone-900/50 border border-white/5">
+                                                            <span className="flex-1 text-sm font-medium">{ing.material.name}</span>
+                                                            <Input
+                                                                type="number"
+                                                                step="0.01"
+                                                                min="0"
+                                                                value={ing.qty || ""}
+                                                                onChange={(e) => handleUpdateNewProductIngredientQty(idx, parseFloat(e.target.value) || 0)}
+                                                                className="w-24 bg-black/20 border-white/10 text-right"
+                                                                placeholder="Qty"
+                                                            />
+                                                            <span className="text-xs text-muted-foreground w-12">{ing.material.unit}</span>
+                                                            <Button
+                                                                variant="ghost"
+                                                                size="sm"
+                                                                onClick={() => handleRemoveNewProductIngredient(idx)}
+                                                                className="text-red-400 hover:text-red-300 hover:bg-red-950/30 h-8 w-8 p-0"
+                                                            >
+                                                                <X className="h-4 w-4" />
+                                                            </Button>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            )}
                                         </div>
+
+                                        {/* Create Button */}
                                         <Button
                                             onClick={handleCreateProduct}
                                             disabled={creatingProduct || !newProductName || !newProductPrice}
                                             className="w-full bg-emerald-600 hover:bg-emerald-700"
                                         >
-                                            {creatingProduct ? <Loader2 className="animate-spin" /> : "Create & Select"}
+                                            {creatingProduct ? <Loader2 className="animate-spin" /> : (
+                                                <>
+                                                    <Plus className="h-4 w-4 mr-2" />
+                                                    Create Product {newProductIngredients.length > 0 ? `with ${newProductIngredients.length} Ingredients` : ""}
+                                                </>
+                                            )}
                                         </Button>
                                     </div>
                                 </DialogContent>
@@ -339,7 +493,7 @@ export function KitchenClient({ initialProducts, initialMaterials, user }: Kitch
                                 </DialogContent>
                             </Dialog>
 
-                            <RecipeManager products={initialProducts} materials={initialMaterials} />
+                            <RecipeManager products={initialProducts} materials={initialMaterials} organizationId={organizationId} />
                         </div>
                     </SpicyCardHeader>
                     <SpicyCardContent className="space-y-6">

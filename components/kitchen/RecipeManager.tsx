@@ -16,9 +16,10 @@ import { FinishedProduct, RawMaterial, Recipe } from "@/lib/types"
 interface RecipeManagerProps {
     products: FinishedProduct[]
     materials: RawMaterial[]
+    organizationId: string
 }
 
-export function RecipeManager({ products, materials }: RecipeManagerProps) {
+export function RecipeManager({ products, materials, organizationId }: RecipeManagerProps) {
     const supabase = createClient()
     const [open, setOpen] = useState(false)
     const [selectedProduct, setSelectedProduct] = useState<FinishedProduct | null>(null)
@@ -38,7 +39,8 @@ export function RecipeManager({ products, materials }: RecipeManagerProps) {
             setLoading(true)
             try {
                 const { data, error } = await supabase.rpc('get_product_recipe', {
-                    p_product_id: selectedProduct.id
+                    p_product_id: selectedProduct.id,
+                    p_organization_id: organizationId
                 })
                 if (error) throw error
 
@@ -98,7 +100,8 @@ export function RecipeManager({ products, materials }: RecipeManagerProps) {
 
             const { error } = await supabase.rpc('update_product_recipe', {
                 p_product_id: selectedProduct.id,
-                p_ingredients: ingredientsJson
+                p_ingredients: ingredientsJson,
+                p_organization_id: organizationId
             })
 
             if (error) throw error

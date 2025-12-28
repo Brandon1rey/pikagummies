@@ -16,6 +16,7 @@ import confetti from "canvas-confetti"
 interface ExpensesClientProps {
     expenses: (Expense & { created_by_email: string | null })[]
     user: any
+    organizationId: string
 }
 
 const EXPENSE_CATEGORIES = [
@@ -29,7 +30,7 @@ const EXPENSE_CATEGORIES = [
     "Other"
 ]
 
-export function ExpensesClient({ expenses, user }: ExpensesClientProps) {
+export function ExpensesClient({ expenses, user, organizationId }: ExpensesClientProps) {
     const supabase = createClient()
     const [loading, setLoading] = useState(false)
 
@@ -52,7 +53,8 @@ export function ExpensesClient({ expenses, user }: ExpensesClientProps) {
                     amount: Number(amount),
                     description: description || null,
                     date,
-                    created_by: user.id
+                    created_by: user.id,
+                    organization_id: organizationId
                 })
 
             if (error) throw error

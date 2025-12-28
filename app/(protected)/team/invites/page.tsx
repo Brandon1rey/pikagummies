@@ -6,14 +6,13 @@ import { InviteGenerator } from "@/components/team/invite-generator";
 import { SpicyCard, SpicyCardContent, SpicyCardHeader, SpicyCardTitle } from "@/components/ui/spicy-card";
 import { formatDistanceToNow } from "date-fns";
 import { Badge } from "@/components/ui/badge";
-import { useRouter } from "next/navigation";
-import { toast } from "sonner";
 
 export default function InvitesPage() {
     const supabase = createClient();
-    const router = useRouter();
     const [invites, setInvites] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
+    const [organizationId, setOrganizationId] = useState<string | null>(null);
+    const [isAdmin, setIsAdmin] = useState(false);
 
     useEffect(() => {
         const checkAdminAndFetch = async () => {
@@ -21,17 +20,33 @@ export default function InvitesPage() {
                 const { data: { user } } = await supabase.auth.getUser();
                 if (!user) return;
 
-                // Fetch Invites
+                // Get user's profile and org
+                const { data: profile } = await supabase
+                    .from('profiles')
+                    .select('organization_id, is_admin, role')
+                    .eq('id', user.id)
+                    .single();
+
+                if (!profile?.organization_id) {
+                    console.error("No organization found for user");
+                    setLoading(false);
+                    return;
+                }
+
+                setOrganizationId(profile.organization_id);
+                setIsAdmin(profile.is_admin || profile.role === 'admin' || profile.role === 'owner');
+
+                // Fetch Invites (scoped to user's org)
                 const { data, error } = await supabase
                     .from('invites')
                     .select('*, creator:created_by(email), user:used_by(email)')
+                    .eq('organization_id', profile.organization_id) // SCOPE TO ORG
                     .order('created_at', { ascending: false });
 
                 if (error) throw error;
                 setInvites(data || []);
             } catch (e) {
                 console.error("Fetch Invites Error:", e);
-                console.error("Error Details:", JSON.stringify(e, null, 2));
             } finally {
                 setLoading(false);
             }
@@ -42,16 +57,32 @@ export default function InvitesPage() {
 
     if (loading) return <div className="text-center p-10 text-zinc-500">Loading access control...</div>;
 
+    if (!organizationId) {
+        return (
+            <div className="text-center p-10 text-red-500">
+                ⚠️ No organization found. Please contact support.
+            </div>
+        );
+    }
+
+    if (!isAdmin) {
+        return (
+            <div className="text-center p-10 text-yellow-500">
+                ⚠️ Only Admins can manage invites.
+            </div>
+        );
+    }
+
     return (
         <div className="space-y-6 animate-in fade-in duration-500">
             <div>
                 <h1 className="text-3xl font-bold text-foreground">Invite Management 🎟️</h1>
-                <p className="text-muted-foreground">Generate and track team invites.</p>
+                <p className="text-muted-foreground">Generate and track team invites for your organization.</p>
             </div>
 
             <div className="grid gap-6 lg:grid-cols-3">
                 <div className="lg:col-span-1">
-                    <InviteGenerator />
+                    <InviteGenerator organizationId={organizationId} />
                 </div>
 
                 <div className="lg:col-span-2">

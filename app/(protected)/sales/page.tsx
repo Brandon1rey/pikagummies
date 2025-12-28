@@ -8,6 +8,27 @@ export default async function SalesPage() {
     const { data: { user } } = await supabase.auth.getUser()
     if (!user) redirect('/login')
 
+    // 1. Try Metadata
+    let organizationId = user.user_metadata.organization_id
+
+    // 2. Fallback to Profile
+    if (!organizationId) {
+        const { data: profile } = await supabase
+            .from('profiles')
+            .select('organization_id')
+            .eq('id', user.id)
+            .single()
+        organizationId = profile?.organization_id
+    }
+
+    if (!organizationId) {
+        return (
+            <div className="flex h-full items-center justify-center text-stone-500">
+                No Organization Selected
+            </div>
+        )
+    }
+
     // Fetch active products for the dropdown
     const { data: products } = await supabase
         .from('finished_products')
@@ -54,5 +75,5 @@ export default async function SalesPage() {
         sold_by_email: profileMap.get(sale.created_by || '') || null
     })) || []
 
-    return <SalesClient products={products || []} recentSales={salesRecords} user={user} />
+    return <SalesClient products={products || []} recentSales={salesRecords} user={user} organizationId={organizationId} />
 }

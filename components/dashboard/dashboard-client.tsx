@@ -21,6 +21,8 @@ interface DashboardClientProps {
     monthlySales: MonthlySales[];
     quarterlySales: QuarterlySales[];
     topProducts: TopProduct[];
+    organizationName: string;
+    settings: Record<string, unknown> | null;  // Organization settings object
 }
 
 const COLORS = ['#f97316', '#ef4444', '#eab308', '#84cc16', '#06b6d4', '#8b5cf6'];
@@ -32,8 +34,39 @@ export function DashboardClient({
     financials,
     monthlySales,
     quarterlySales,
-    topProducts
+    topProducts,
+    organizationName,
+    settings
 }: DashboardClientProps) {
+
+    // Normalize numeric types from RPC (PostgreSQL numeric → string issue)
+    // This ensures chart libraries receive actual numbers, not strings
+    const normalizedTopProducts = topProducts.map(p => ({
+        ...p,
+        total_revenue: Number(p.total_revenue) || 0,
+        sale_count: Number(p.sale_count) || 0
+    }));
+
+    const normalizedMonthlySales = monthlySales.map(m => ({
+        ...m,
+        total_revenue: Number(m.total_revenue) || 0
+    }));
+
+    const normalizedQuarterlySales = quarterlySales.map(q => ({
+        ...q,
+        total_revenue: Number(q.total_revenue) || 0
+    }));
+
+    const normalizedSalesByDow = salesByDow.map(s => ({
+        ...s,
+        total_revenue: Number(s.total_revenue) || 0,
+        sale_count: Number(s.sale_count) || 0
+    }));
+
+    const normalizedExpenseBreakdown = expenseBreakdown.map(e => ({
+        ...e,
+        total_amount: Number(e.total_amount) || 0
+    }));
 
     // --- KPI Calculations ---
     const revenue = financials
@@ -56,7 +89,7 @@ export function DashboardClient({
         <div className="space-y-8">
             {/* Header */}
             <div>
-                <h1 className="text-3xl font-bold text-foreground">Mission Control 🚀</h1>
+                <h1 className="text-3xl font-bold text-foreground">Welcome to {organizationName} 🚀</h1>
                 <p className="text-muted-foreground">Real-time financial telemetry.</p>
             </div>
 
@@ -119,9 +152,9 @@ export function DashboardClient({
                     </SpicyCardHeader>
                     <SpicyCardContent className="pl-2">
                         <div className="h-[300px] w-full">
-                            {monthlySales.length > 0 ? (
+                            {normalizedMonthlySales.length > 0 ? (
                                 <ResponsiveContainer width="100%" height="100%">
-                                    <AreaChart data={monthlySales}>
+                                    <AreaChart data={normalizedMonthlySales}>
                                         <defs>
                                             <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
                                                 <stop offset="5%" stopColor="#f97316" stopOpacity={0.8} />
@@ -157,9 +190,9 @@ export function DashboardClient({
                     </SpicyCardHeader>
                     <SpicyCardContent>
                         <div className="h-[300px] w-full">
-                            {topProducts.length > 0 ? (
+                            {normalizedTopProducts.length > 0 ? (
                                 <ResponsiveContainer width="100%" height="100%">
-                                    <BarChart layout="vertical" data={topProducts} margin={{ left: 40 }}>
+                                    <BarChart layout="vertical" data={normalizedTopProducts} margin={{ left: 40 }}>
                                         <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" horizontal={false} />
                                         <XAxis type="number" stroke="#888888" fontSize={12} tickLine={false} axisLine={false} hide />
                                         <YAxis dataKey="product_name" type="category" stroke="#888888" fontSize={12} tickLine={false} axisLine={false} width={100} />
@@ -189,11 +222,11 @@ export function DashboardClient({
                     </SpicyCardHeader>
                     <SpicyCardContent>
                         <div className="h-[400px] w-full">
-                            {expenseBreakdown.length > 0 ? (
+                            {normalizedExpenseBreakdown.length > 0 ? (
                                 <ResponsiveContainer width="100%" height="100%">
                                     <PieChart>
                                         <Pie
-                                            data={expenseBreakdown}
+                                            data={normalizedExpenseBreakdown}
                                             cx="50%"
                                             cy="50%"
                                             labelLine={false}
@@ -203,7 +236,7 @@ export function DashboardClient({
                                             dataKey="total_amount"
                                             style={{ fontSize: '16px', fontWeight: 'bold' }}
                                         >
-                                            {expenseBreakdown.map((entry, index) => (
+                                            {normalizedExpenseBreakdown.map((_, index) => (
                                                 <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                                             ))}
                                         </Pie>
@@ -233,9 +266,9 @@ export function DashboardClient({
                     </SpicyCardHeader>
                     <SpicyCardContent className="pl-2">
                         <div className="h-[400px] w-full">
-                            {salesByDow.length > 0 ? (
+                            {normalizedSalesByDow.length > 0 ? (
                                 <ResponsiveContainer width="100%" height="100%">
-                                    <BarChart data={salesByDow}>
+                                    <BarChart data={normalizedSalesByDow}>
                                         <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" vertical={false} />
                                         <XAxis dataKey="day_name" stroke="#888888" fontSize={12} tickLine={false} axisLine={false} />
                                         <YAxis stroke="#888888" fontSize={12} tickLine={false} axisLine={false} tickFormatter={(value) => `$${value}`} />

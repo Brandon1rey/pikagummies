@@ -7,7 +7,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { toast } from 'sonner'
-import { Loader2, Ticket, ArrowRight, UserPlus, Lock, Mail } from 'lucide-react'
+import { Loader2, Ticket, ArrowRight, UserPlus, Lock, Mail, Phone } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 
 function InvitePageContent() {
@@ -20,11 +20,13 @@ function InvitePageContent() {
     // Step 1: Invite Code
     const [inviteCode, setInviteCode] = useState('')
     const [inviteData, setInviteData] = useState<any>(null)
+    const [existingOrgWarning, setExistingOrgWarning] = useState<string | null>(null)
 
     // Step 2: Registration
     const [email, setEmail] = useState('')
     const [password, setPassword] = useState('')
     const [fullName, setFullName] = useState('')
+    const [phone, setPhone] = useState('') // NEW: Phone for Ops Bot
 
     // Auto-fill code from URL
     useEffect(() => {
@@ -40,6 +42,16 @@ function InvitePageContent() {
 
         setLoading(true)
         try {
+            // Check current user status first
+            const { data: { user } } = await supabase.auth.getUser()
+
+            if (user) {
+                const { data: profile } = await supabase.from('profiles').select('organization_id').eq('id', user.id).single()
+                if (profile?.organization_id) {
+                    setExistingOrgWarning("You are already part of an organization. Accepting this will switch you to the new one.")
+                }
+            }
+
             const { data, error } = await supabase
                 .from('invites')
                 .select('*')
@@ -51,10 +63,9 @@ function InvitePageContent() {
 
             setInviteData(data)
             setStep('register')
-            toast.success("Invite code verified! Welcome to the team.")
+            toast.success("Invite code verified!")
         } catch (err: any) {
             console.error("Verify Error:", err)
-            console.error("Error Details:", JSON.stringify(err, null, 2))
             toast.error(err.message)
         } finally {
             setLoading(false)
@@ -66,49 +77,63 @@ function InvitePageContent() {
         setLoading(true)
 
         try {
-            // 1. Sign up the user
-            const { data: authData, error: authError } = await supabase.auth.signUp({
-                email,
-                password,
-                options: {
-                    data: {
-                        full_name: fullName,
-                        role: inviteData.role_to_assign // Pass role metadata
+            let userId = (await supabase.auth.getUser()).data.user?.id
+
+            // 1. Sign up OR Use Existing
+            if (!userId) {
+                const { data: authData, error: authError } = await supabase.auth.signUp({
+                    email,
+                    password,
+                    options: {
+                        data: {
+                            full_name: fullName,
+                            role: inviteData.role_to_assign,
+                            phone: phone
+                        }
                     }
-                }
-            })
+                })
+                if (authError) throw authError
+                if (!authData.user) throw new Error("Registration failed")
+                userId = authData.user.id
+            }
 
-            if (authError) throw authError
-            if (!authData.user) throw new Error("Registration failed")
+            const orgId = inviteData.organization_id
 
-            // 2. Update the invite as used
-            // Note: This might fail if email confirmation is enabled and the user is not logged in yet.
-            // Ideally, this should be done by a trigger or edge function, but we'll try client-side.
-            // If the user is not logged in (session is null), this update will fail due to RLS unless we have a policy allowing it.
-            // However, since we just signed up, we might have a session if email confirmation is OFF.
+            // 3. CRITICAL: Update profile with org_id and phone (The "Switch")
+            const { error: profileError } = await supabase
+                .from('profiles')
+                .update({
+                    organization_id: orgId,
+                    role: inviteData.role_to_assign, // Migration: this assumes 'owner', 'admin', 'staff' matches DB enum
+                    phone: phone || undefined,   // Update phone if provided
+                    tags: [] // CLEAR TAGS on switch
+                })
+                .eq('id', userId)
 
+            if (profileError) {
+                console.error("Failed to update profile:", profileError)
+                throw new Error("Failed to join organization")
+            }
+
+            // 4. Update the invite as used
             const { error: inviteError } = await supabase
                 .from('invites')
                 .update({
                     status: 'used',
-                    used_by: authData.user.id
+                    used_by: userId
                 })
                 .eq('id', inviteData.id)
 
             if (inviteError) {
                 console.error("Failed to mark invite as used:", inviteError)
-                console.error("Error Details:", JSON.stringify(inviteError, null, 2))
-                // Non-critical, but good to log. 
-                // If this fails, it means the invite is still "active" which is a minor issue.
             }
 
-            toast.success("Account created! Welcome aboard 🚀")
+            toast.success("Welcome to the team! Organization switched.")
             router.push('/')
             router.refresh()
 
         } catch (err: any) {
             console.error("Registration Error:", err)
-            console.error("Error Details:", JSON.stringify(err, null, 2))
             toast.error(err.message || "Registration failed")
         } finally {
             setLoading(false)
@@ -162,6 +187,11 @@ function InvitePageContent() {
                     </form>
                 ) : (
                     <form onSubmit={handleRegister} className="space-y-6 animate-in slide-in-from-right duration-300">
+                        {existingOrgWarning && (
+                            <div className="p-4 bg-yellow-500/20 border border-yellow-500/50 rounded-lg text-yellow-200 text-sm mb-4">
+                                <strong>Warning:</strong> You are already part of an organization. Accepting this invite will remove you from your current team.
+                            </div>
+                        )}
                         <div className="space-y-2">
                             <Label className="text-zinc-300">Full Name</Label>
                             <div className="relative">
@@ -191,6 +221,23 @@ function InvitePageContent() {
                                     disabled={loading}
                                 />
                             </div>
+                        </div>
+
+                        {/* NEW: Phone Number for Ops Bot */}
+                        <div className="space-y-2">
+                            <Label className="text-zinc-300">WhatsApp Phone (for Ops Bot)</Label>
+                            <div className="relative">
+                                <Phone className="absolute left-3 top-3 h-5 w-5 text-zinc-500" />
+                                <Input
+                                    type="tel"
+                                    placeholder="+521XXXXXXXXXX"
+                                    value={phone}
+                                    onChange={(e) => setPhone(e.target.value)}
+                                    className="bg-black/20 border-white/10 text-white pl-10"
+                                    disabled={loading}
+                                />
+                            </div>
+                            <p className="text-xs text-zinc-500">E.164 format. Used to interact with the Ops Bot.</p>
                         </div>
 
                         <div className="space-y-2">

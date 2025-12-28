@@ -10,10 +10,31 @@ export default async function KitchenPage() {
         redirect('/login')
     }
 
-    // Fetch initial data for the client component
+    // 1. Try Metadata
+    let organizationId = user.user_metadata.organization_id
+
+    // 2. Fallback to Profile
+    if (!organizationId) {
+        const { data: profile } = await supabase
+            .from('profiles')
+            .select('organization_id')
+            .eq('id', user.id)
+            .single()
+        organizationId = profile?.organization_id
+    }
+
+    if (!organizationId) {
+        return (
+            <div className="flex h-full items-center justify-center text-stone-500">
+                No Organization Selected
+            </div>
+        )
+    }
+
+    // Fetch initial data for the client component (scoped to organization)
     const [productsResult, materialsResult] = await Promise.all([
-        supabase.from('finished_products').select('*').eq('is_active', true).order('name'),
-        supabase.from('raw_materials').select('*').eq('is_active', true).order('name')
+        supabase.from('finished_products').select('*').eq('organization_id', organizationId).eq('is_active', true).order('name'),
+        supabase.from('raw_materials').select('*').eq('organization_id', organizationId).eq('is_active', true).order('name')
     ])
 
     return (
@@ -29,6 +50,7 @@ export default async function KitchenPage() {
                 initialProducts={productsResult.data || []}
                 initialMaterials={materialsResult.data || []}
                 user={user}
+                organizationId={organizationId}
             />
         </div>
     )

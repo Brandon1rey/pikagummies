@@ -3,13 +3,16 @@
 import { useState } from "react";
 import { createClient } from "@/lib/supabase/client";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
-import { Copy, Loader2, Plus, RefreshCw } from "lucide-react";
+import { Copy, Loader2, Plus } from "lucide-react";
 import { SpicyCard, SpicyCardContent, SpicyCardHeader, SpicyCardTitle } from "@/components/ui/spicy-card";
 
-export function InviteGenerator() {
+interface InviteGeneratorProps {
+    organizationId: string; // REQUIRED - Must be injected from parent
+}
+
+export function InviteGenerator({ organizationId }: InviteGeneratorProps) {
     const supabase = createClient();
     const [loading, setLoading] = useState(false);
     const [generatedCode, setGeneratedCode] = useState("");
@@ -25,6 +28,11 @@ export function InviteGenerator() {
     };
 
     const handleCreateInvite = async () => {
+        if (!organizationId) {
+            toast.error("Organization context missing. Please refresh the page.");
+            return;
+        }
+
         setLoading(true);
         const code = generateCode();
 
@@ -32,13 +40,32 @@ export function InviteGenerator() {
             const { data: { user } } = await supabase.auth.getUser();
             if (!user) throw new Error("Not authenticated");
 
+            // Check if user is admin of this org
+            const { data: profile } = await supabase
+                .from("profiles")
+                .select("is_admin, role, organization_id")
+                .eq("id", user.id)
+                .single();
+
+            if (!profile) throw new Error("Profile not found");
+
+            // Security: Verify they are admin AND belong to this org
+            if (!profile.is_admin && profile.role !== 'admin' && profile.role !== 'owner') {
+                throw new Error("Only Admins can create invites");
+            }
+
+            if (profile.organization_id !== organizationId) {
+                throw new Error("You cannot create invites for other organizations");
+            }
+
             const { error } = await supabase
                 .from("invites")
                 .insert({
                     code,
                     role_to_assign: role,
                     created_by: user.id,
-                    status: 'active'
+                    status: 'active',
+                    organization_id: organizationId // <-- THE FIX: Include org ID!
                 });
 
             if (error) throw error;
@@ -73,7 +100,11 @@ export function InviteGenerator() {
                                 <SelectValue />
                             </SelectTrigger>
                             <SelectContent>
-                                <SelectItem value="staff">Staff</SelectItem>
+                                <SelectItem value="staff">Staff (General)</SelectItem>
+                                <SelectItem value="sales">Sales Team</SelectItem>
+                                <SelectItem value="logistics">Logistics</SelectItem>
+                                <SelectItem value="marketing">Marketing</SelectItem>
+                                <SelectItem value="analyst">Analyst</SelectItem>
                                 <SelectItem value="admin">Admin</SelectItem>
                             </SelectContent>
                         </Select>
