@@ -75,5 +75,18 @@ export default async function SalesPage() {
         sold_by_email: profileMap.get(sale.created_by || '') || null
     })) || []
 
-    return <SalesClient products={products || []} recentSales={salesRecords} user={user} organizationId={organizationId} />
+    // Fetch Organization Settings for Receipts
+    const { data: orgSettings } = await supabase
+        .from('organization_settings')
+        .select('*')
+        .eq('organization_id', organizationId)
+        .single()
+
+    return <SalesClient
+        products={products || []}
+        recentSales={salesRecords}
+        user={user}
+        organizationId={organizationId}
+        orgSettings={orgSettings}
+    />
 }

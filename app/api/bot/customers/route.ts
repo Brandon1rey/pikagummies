@@ -5,8 +5,11 @@ import { z } from 'zod'
 const customerSchema = z.object({
     phone: z.string().min(1),
     organization_id: z.string().uuid(),
-    name: z.string().nullish(), // Allow null, undefined, or string
-    tags: z.array(z.string()).optional()
+    name: z.string().nullish(),
+    tags: z.array(z.string()).optional(),
+    email: z.string().email().optional().or(z.literal('')),
+    tax_id: z.string().optional(),
+    address: z.string().optional()
 })
 
 export async function POST(request: NextRequest) {
@@ -19,15 +22,19 @@ export async function POST(request: NextRequest) {
 
         const supabase = createServiceRoleClient()
 
-        // Upsert customer (insert or update if exists)
+        // Upsert customer
         const { data, error } = await (supabase.from('crm_customers') as any).upsert({
             phone: payload.phone,
             organization_id: payload.organization_id,
             name: payload.name || null,
-            tags: payload.tags || ['new_lead']
+            tags: payload.tags || ['new_lead'],
+            email: payload.email || null,
+            tax_id: payload.tax_id || null,
+            address: payload.address || null
         }, {
             onConflict: 'organization_id,phone',
             ignoreDuplicates: false
+
         }).select()
 
         if (error) throw error
