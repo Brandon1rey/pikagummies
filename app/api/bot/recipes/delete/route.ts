@@ -7,11 +7,13 @@ import { createClient } from '@supabase/supabase-js';
  * Called by the ops bot for "eliminar receta" intent.
  * Uses service role to bypass RLS since bot has its own auth.
  */
+import { validateToken_Safe } from '@/lib/security/timing-safe';
+
 export async function POST(request: NextRequest) {
     try {
         // Verify Bot Service Token
         const token = request.headers.get('X-Bot-Service-Token');
-        if (token !== process.env.BOT_SERVICE_TOKEN) {
+        if (!validateToken_Safe(token, process.env.BOT_SERVICE_TOKEN)) {
             return NextResponse.json({ status: 'error', message: 'Unauthorized' }, { status: 401 });
         }
 

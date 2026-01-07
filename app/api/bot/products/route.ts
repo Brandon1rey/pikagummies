@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServiceRoleClient } from '@/lib/supabase/service'
 
+import { validateToken_Safe } from '@/lib/security/timing-safe'
+
 export async function GET(request: NextRequest) {
     // 1. Security Gate
     const receivedToken = request.headers.get('X-Bot-Service-Token')
@@ -10,7 +12,7 @@ export async function GET(request: NextRequest) {
     console.log("   -> Received from Bot:", receivedToken)
     console.log("   -> Expected by Server:", expectedToken)
 
-    if (receivedToken !== expectedToken) {
+    if (!validateToken_Safe(receivedToken, expectedToken)) {
         return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 

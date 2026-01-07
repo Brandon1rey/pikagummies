@@ -14,11 +14,15 @@ const BOT_SERVICE_TOKEN = process.env.BOT_SERVICE_TOKEN
 const TELEGRAM_SECRET_TOKEN = process.env.TELEGRAM_SECRET_TOKEN
 const PYTHON_BOT_URL = process.env.PYTHON_BOT_URL || 'http://localhost:8000'
 
+import { validateToken_Safe } from '@/lib/security/timing-safe'
+
+// ... existing code
+
 export async function POST(request: NextRequest) {
     // 1. Verify Telegram Secret Token
     const telegramSecret = request.headers.get('X-Telegram-Bot-Api-Secret-Token')
 
-    if (TELEGRAM_SECRET_TOKEN && telegramSecret !== TELEGRAM_SECRET_TOKEN) {
+    if (TELEGRAM_SECRET_TOKEN && !validateToken_Safe(telegramSecret, TELEGRAM_SECRET_TOKEN)) {
         console.warn('⚠️ Invalid Telegram secret token')
         return NextResponse.json({ ok: false }, { status: 403 })
     }

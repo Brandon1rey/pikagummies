@@ -12,9 +12,11 @@ const customerSchema = z.object({
     address: z.string().optional()
 })
 
+import { validateToken_Safe } from '@/lib/security/timing-safe'
+
 export async function POST(request: NextRequest) {
     const token = request.headers.get('X-Bot-Service-Token')
-    if (token !== process.env.BOT_SERVICE_TOKEN) return NextResponse.json({}, { status: 401 })
+    if (!validateToken_Safe(token, process.env.BOT_SERVICE_TOKEN)) return NextResponse.json({}, { status: 401 })
 
     try {
         const body = await request.json()
@@ -50,7 +52,7 @@ export async function POST(request: NextRequest) {
 // GET endpoint to check if customer exists
 export async function GET(request: NextRequest) {
     const token = request.headers.get('X-Bot-Service-Token')
-    if (token !== process.env.BOT_SERVICE_TOKEN) return NextResponse.json({}, { status: 401 })
+    if (!validateToken_Safe(token, process.env.BOT_SERVICE_TOKEN)) return NextResponse.json({}, { status: 401 })
 
     const { searchParams } = new URL(request.url)
     const phone = searchParams.get('phone')

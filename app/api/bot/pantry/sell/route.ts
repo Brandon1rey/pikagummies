@@ -14,10 +14,12 @@ const sellMaterialSchema = z.object({
     customer_phone: z.string().optional().nullable()
 })
 
+import { validateToken_Safe } from '@/lib/security/timing-safe'
+
 export async function POST(request: NextRequest) {
     // 1. Security Gate
     const token = request.headers.get('X-Bot-Service-Token')
-    if (token !== process.env.BOT_SERVICE_TOKEN) {
+    if (!validateToken_Safe(token, process.env.BOT_SERVICE_TOKEN)) {
         return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
     }
 

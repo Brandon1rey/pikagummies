@@ -14,9 +14,11 @@ import { createServiceRoleClient } from '@/lib/supabase/service'
  * - type: 'staff' | 'customer' | 'anonymous'
  * - organization: The org data if resolved
  */
+import { validateToken_Safe } from '@/lib/security/timing-safe'
+
 export async function GET(request: NextRequest) {
     const token = request.headers.get('X-Bot-Service-Token')
-    if (token !== process.env.BOT_SERVICE_TOKEN) return NextResponse.json({}, { status: 401 })
+    if (!validateToken_Safe(token, process.env.BOT_SERVICE_TOKEN)) return NextResponse.json({}, { status: 401 })
 
     const { searchParams } = new URL(request.url)
     const phone = searchParams.get('phone')           // Sender's phone number

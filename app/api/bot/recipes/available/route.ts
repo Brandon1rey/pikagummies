@@ -7,9 +7,11 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createServiceRoleClient } from '@/lib/supabase/service'
 
+import { validateToken_Safe } from '@/lib/security/timing-safe'
+
 export async function GET(request: NextRequest) {
     const token = request.headers.get('X-Bot-Service-Token')
-    if (token !== process.env.BOT_SERVICE_TOKEN) {
+    if (!validateToken_Safe(token, process.env.BOT_SERVICE_TOKEN)) {
         return NextResponse.json({}, { status: 401 })
     }
 

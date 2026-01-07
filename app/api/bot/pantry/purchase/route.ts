@@ -19,9 +19,11 @@ const purchaseSchema = z.object({
     weight_unit: z.enum(['g', 'kg', 'ml', 'lt']).optional()
 })
 
+import { validateToken_Safe } from '@/lib/security/timing-safe'
+
 export async function POST(request: NextRequest) {
     const token = request.headers.get('X-Bot-Service-Token')
-    if (token !== process.env.BOT_SERVICE_TOKEN) {
+    if (!validateToken_Safe(token, process.env.BOT_SERVICE_TOKEN)) {
         return NextResponse.json({}, { status: 401 })
     }
 
