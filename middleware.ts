@@ -1,11 +1,11 @@
-import { type NextRequest, NextResponse } from 'next/server' // <--- AQUÍ FALTABA NextResponse
-import { updateSession } from '@/lib/supabase/middleware' // O la ruta que use tu proyecto para auth
+import { type NextRequest, NextResponse } from 'next/server' 
+import { updateSession } from '@/lib/supabase/middleware' 
 
 import { Ratelimit } from '@upstash/ratelimit'
 import { Redis } from '@upstash/redis'
 
 // Simple in-memory fallback if Redis is not configured (prevents crash, but doesn't limit effectively across lambdas)
-// In production, YOU MUST SET UPSTASH_REDIS_REST_URL & UPSTASH_REDIS_REST_TOKEN
+
 const redis = process.env.UPSTASH_REDIS_REST_URL
     ? Redis.fromEnv()
     : null;
